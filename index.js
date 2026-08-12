@@ -12,6 +12,7 @@ import {
 } from './backend-integration.js';
 
 const EXTENSION_NAME = 'sillytavern-cross-device-access-helper';
+const DEFAULT_START_COMMAND = 'cd "$HOME/SillyTavern" && bash start.sh';
 
 function getBackendMode(panel) {
     return panel.querySelector('input[name="cross-device-backend-mode"]:checked')?.value ?? 'single';
@@ -68,7 +69,7 @@ function updateServerAddress(panel, source = 'manual') {
     status.classList.toggle('cross-device-access-helper__status--valid', result.valid);
     status.classList.toggle('cross-device-access-helper__status--error', !result.valid && result.code !== 'empty');
     status.textContent = source === 'detected' && result.valid
-        ? '已从当前页面自动识别安卓手机 IP。'
+        ? '已从当前页面自动识别服务器设备 IP。'
         : result.message;
 
     if (!result.valid) {
@@ -142,7 +143,7 @@ function renderBackendNetworkAddress(panel, container, status) {
 
     if (recommended) {
         const label = document.createElement('b');
-        label.textContent = '请在 iPad 或电脑打开这个网址';
+        label.textContent = '请在访问设备打开这个网址';
         const input = document.createElement('input');
         input.className = 'text_pole';
         input.readOnly = true;
@@ -170,11 +171,11 @@ function renderBackendNetworkAddress(panel, container, status) {
         box.append(label, input, button, copyStatus, qrDetails);
     } else if (accessUrls.length > 0) {
         const message = document.createElement('p');
-        message.textContent = '先在下方填写 iPad 或电脑的 IPv4 地址，助手会自动选出应该打开的网址。';
+        message.textContent = '先在下方填写访问设备的 IPv4 地址，助手会自动选出应该打开的网址。';
         box.append(message);
     } else {
         const message = document.createElement('p');
-        message.textContent = '没有检测到手机的私有局域网地址。请确认手机已连接 Wi‑Fi。';
+        message.textContent = '没有检测到服务器设备的私有局域网地址。请确认服务器设备已连接 Wi‑Fi。';
         box.append(message);
     }
     container.append(box);
@@ -202,6 +203,27 @@ function renderBackendSummary(panel, status) {
     const enabled = value => value === true ? '已开启' : value === false ? '未开启' : '未知';
     appendStatusLine(summary, '配置文件', `局域网连接${enabled(status.config.listen)}；白名单保护${enabled(status.config.whitelistMode)}`);
     appendStatusLine(summary, '本次运行', `局域网连接${enabled(status.runtime.listen)}；白名单保护${enabled(status.runtime.whitelistMode)}`);
+    const whitelistDetails = document.createElement('details');
+    whitelistDetails.className = 'cross-device-access-helper__whitelist';
+    const whitelistSummary = document.createElement('summary');
+    const whitelist = Array.isArray(status.config.whitelist) ? status.config.whitelist : [];
+    whitelistSummary.textContent = `查看当前白名单（${whitelist.length} 项）`;
+    const whitelistList = document.createElement('ul');
+    for (const entry of whitelist) {
+        const item = document.createElement('li');
+        item.textContent = entry === '::1' || entry === '127.0.0.1'
+            ? `${entry}（服务器设备本机）`
+            : entry;
+        whitelistList.append(item);
+    }
+    if (whitelist.length === 0) {
+        const empty = document.createElement('p');
+        empty.textContent = '当前白名单为空。';
+        whitelistDetails.append(whitelistSummary, empty);
+    } else {
+        whitelistDetails.append(whitelistSummary, whitelistList);
+    }
+    summary.append(whitelistDetails);
     renderBackendNetworkAddress(panel, summary, status);
     if (status.legacyWhitelist.exists) {
         appendStatusLine(summary, '需要处理', '检测到 whitelist.txt，自动写入保持禁用');
@@ -327,16 +349,26 @@ function renderRestartSteps(container, heading) {
     title.textContent = heading;
     const list = document.createElement('ol');
     for (const text of [
-        '保存正在进行的聊天，回到运行酒馆的 Termux。',
+        '保存正在进行的聊天，回到服务器设备上运行酒馆的 Termux。',
         '点底部 CTRL，再按键盘 C；看到 ~/SillyTavern $ 后继续。',
-        '输入 st 并回车（如果 st 不可用，则输入 npm start）。',
+        '复制下方官方通用启动命令，粘贴到 Termux 后回车。',
         '酒馆重新打开后，回到这里点击“重新检查后端”。',
     ]) {
         const item = document.createElement('li');
         item.textContent = text;
         list.append(item);
     }
-    container.append(title, list);
+    const commandBox = document.createElement('input');
+    commandBox.className = 'text_pole';
+    commandBox.readOnly = true;
+    commandBox.value = DEFAULT_START_COMMAND;
+    const copyButton = document.createElement('button');
+    copyButton.type = 'button';
+    copyButton.className = 'menu_button cross-device-access-helper__copy-start';
+    copyButton.textContent = '复制启动命令';
+    const copyStatus = document.createElement('small');
+    copyButton.addEventListener('click', () => void copyText(DEFAULT_START_COMMAND, copyStatus, '启动命令已复制。'));
+    container.append(title, list, commandBox, copyButton, copyStatus);
     container.hidden = false;
 }
 
@@ -418,7 +450,12 @@ function createSettingsPanel() {
             </div>
             <div class="inline-drawer-content">
                 <div class="cross-device-access-helper__hero">
-                    <b>跟着 4 步，让 iPad 或电脑访问手机上的酒馆</b>
+                    <b>先分清两台设备</b>
+                    <div class="cross-device-access-helper__terms">
+                        <p><b>服务器设备：</b>安装了 Termux、正在运行 SillyTavern 的这台设备。</p>
+                        <p><b>访问设备：</b>你想用来打开酒馆网页的另一台设备。</p>
+                    </div>
+                    <p><b>目标：</b>让访问设备通过局域网打开服务器设备上的酒馆。</p>
                     <p>安全向导和可选后端并存。按需要展开其中一项，不会互相切换或隐藏。</p>
                 </div>
 
@@ -434,22 +471,45 @@ function createSettingsPanel() {
                     </button>
                     <div id="cross-device-access-backend-setup" class="cross-device-access-helper__backend-setup" hidden>
                         <h3>安装可选后端组件</h3>
-                        <p><b>为什么要安装：</b>后端可以读取当前配置和手机局域网 IP；在你查看预览并二次确认后，自动备份、修改或恢复配置。</p>
+                        <p><b>为什么要安装：</b>后端可以读取当前配置和服务器设备局域网 IP；在你查看预览并二次确认后，自动备份、修改或恢复配置。</p>
                         <p class="cross-device-access-helper__risk"><b>权限风险：</b>所有 SillyTavern 服务器插件都没有沙箱，会继承酒馆 Node 进程的文件与网络权限。你可以继续使用下方安全向导，不安装也不影响基本功能。</p>
                         <ol>
-                            <li>保存聊天，回到运行酒馆的 Termux。</li>
+                            <li>保存聊天，回到服务器设备上运行酒馆的 Termux。</li>
                             <li>点底部 <b>CTRL</b>，再按键盘 <b>C</b>。看到 <code>~/SillyTavern $</code> 后继续。</li>
-                            <li>复制并粘贴下面整段命令。成功后运行 <code>npm start</code>，刷新酒馆页面。</li>
+                            <li>复制并粘贴下面整段命令。成功后复制下方官方通用启动命令，粘贴并回车。</li>
                         </ol>
                         <textarea id="cross-device-access-backend-install-command" class="text_pole" rows="11" readonly spellcheck="false"></textarea>
                         <button id="cross-device-access-copy-backend-install" class="menu_button" type="button">复制后端安装命令</button>
                         <div id="cross-device-access-backend-copy-status" class="cross-device-access-helper__copy-status" role="status"></div>
+                        <input id="cross-device-access-backend-start-command" class="text_pole" type="text" readonly spellcheck="false">
+                        <button id="cross-device-access-copy-backend-start" class="menu_button" type="button">复制官方通用启动命令</button>
+                        <div id="cross-device-access-backend-start-status" class="cross-device-access-helper__copy-status" role="status"></div>
                         <p><a href="${BACKEND_SOURCE_URL}" target="_blank" rel="noopener noreferrer">查看后端开源代码和权限说明</a></p>
                     </div>
 
                     <section id="cross-device-access-backend-dashboard" class="cross-device-access-helper__backend-dashboard" hidden>
                     <h3>后端配置面板</h3>
                     <div id="cross-device-access-backend-summary"></div>
+                    <details class="cross-device-access-helper__device-ip-help">
+                        <summary>如何找到访问设备的 IPv4？</summary>
+                        <p>请在<b>访问设备</b>上查看，不是在服务器设备上查看。</p>
+                        <details>
+                            <summary>访问设备是 iPad / iPhone</summary>
+                            <ol>
+                                <li>打开“设置” → “无线局域网”。</li>
+                                <li>点当前 Wi‑Fi 右侧的 ⓘ。</li>
+                                <li>找到“IPv4 地址”里的“IP 地址”。</li>
+                            </ol>
+                        </details>
+                        <details>
+                            <summary>访问设备是 Windows 电脑</summary>
+                            <ol>
+                                <li>打开“设置” → “网络和 Internet”。</li>
+                                <li>进入当前连接的 Wi‑Fi 或以太网属性。</li>
+                                <li>找到“IPv4 地址”。</li>
+                            </ol>
+                        </details>
+                    </details>
                     <label for="cross-device-access-backend-device-ip"><b>访问设备 IPv4</b></label>
                     <input id="cross-device-access-backend-device-ip" class="text_pole" type="text" inputmode="decimal"
                         maxlength="15" placeholder="例如：192.168.123.17" autocomplete="off" spellcheck="false">
@@ -481,7 +541,7 @@ function createSettingsPanel() {
 
                 <section class="cross-device-access-helper__step">
                     <h3><span>1</span> 找到访问设备的 IP</h3>
-                    <p>请在<b>准备拿来访问酒馆的 iPad 或电脑</b>上查看，不是安卓手机。</p>
+                    <p>请在<b>访问设备</b>上查看，不是在服务器设备上查看。</p>
                     <details>
                         <summary>iPad / iPhone 怎么看？</summary>
                         <ol>
@@ -537,10 +597,12 @@ function createSettingsPanel() {
                                 <li>先保存正在进行的聊天。</li>
                                 <li>回到 Termux，按 <code>CTRL</code> 再按 <code>C</code>，手动停止酒馆。</li>
                                 <li>点击下方按钮复制，粘贴到 Termux 后按回车。</li>
-                                <li>看到“配置修改成功”后，运行 <code>npm run start</code>。</li>
+                                <li>看到“配置修改成功”后，复制下方官方通用启动命令，粘贴并回车。</li>
                             </ol>
                         </div>
                         <button id="cross-device-access-copy-apply" class="menu_button" type="button">复制配置步骤</button>
+                        <input id="cross-device-access-safe-start-command" class="text_pole" type="text" readonly spellcheck="false">
+                        <button id="cross-device-access-copy-safe-start" class="menu_button" type="button">复制官方通用启动命令</button>
                         <details>
                             <summary>查看原始命令（通常不需要）</summary>
                             <textarea id="cross-device-access-apply-command" class="text_pole" rows="10" readonly spellcheck="false"></textarea>
@@ -561,30 +623,30 @@ function createSettingsPanel() {
                 </section>
 
                 <section class="cross-device-access-helper__step">
-                    <h3><span>4</span> 生成其他设备要打开的网址</h3>
-                    <p>这里需要的是<b>安卓手机自己的 IP</b>，它与第 1 步的访问设备 IP 不同。</p>
+                    <h3><span>4</span> 生成访问设备要打开的网址</h3>
+                    <p>这里需要的是<b>服务器设备自己的 IP</b>，它与第 1 步的访问设备 IP 不同。</p>
                     <details open>
-                        <summary>安卓手机 IP 怎么看？</summary>
+                        <summary>服务器设备 IP 怎么看？</summary>
                         <ol>
-                            <li>打开安卓“设置” → “WLAN / Wi‑Fi”。</li>
+                            <li>打开服务器设备的“设置” → “WLAN / Wi‑Fi”。</li>
                             <li>点当前已连接的 Wi‑Fi 或“网络详情”。</li>
-                            <li>找到“IP 地址”或“IPv4 地址”。不同手机名称可能略有不同。</li>
+                            <li>找到“IP 地址”或“IPv4 地址”。不同服务器设备的设置名称可能略有不同。</li>
                         </ol>
                     </details>
-                    <label for="cross-device-access-server-ip"><b>安卓手机的 IPv4 地址</b></label>
+                    <label for="cross-device-access-server-ip"><b>服务器设备的 IPv4 地址</b></label>
                     <input id="cross-device-access-server-ip" class="text_pole" type="text" inputmode="decimal"
                         maxlength="15" placeholder="例如：192.168.123.10" autocomplete="off"
                         autocapitalize="off" spellcheck="false" aria-describedby="cross-device-access-server-validation">
                     <div id="cross-device-access-server-validation" class="cross-device-access-helper__status"
-                        role="status" aria-live="polite">当前页面使用本机地址，浏览器无法自动读取手机 Wi‑Fi IP，请按上方教程查看。</div>
+                        role="status" aria-live="polite">当前页面使用本机地址，浏览器无法自动读取服务器设备的 Wi‑Fi IP，请按上方教程查看。</div>
                     <div id="cross-device-access-url-box" class="cross-device-access-helper__url-box" hidden>
-                        <label for="cross-device-access-url"><b>在 iPad / 电脑浏览器打开</b></label>
+                        <label for="cross-device-access-url"><b>在访问设备的浏览器打开</b></label>
                         <input id="cross-device-access-url" class="text_pole" type="text" readonly spellcheck="false">
                         <button id="cross-device-access-copy-url" class="menu_button" type="button" disabled>复制访问网址</button>
                     </div>
                     <details>
-                        <summary>为什么不能总是自动检测手机 IP？</summary>
-                        <p>当酒馆通过 <code>127.0.0.1</code> 打开时，网页只能看到这个本机地址。浏览器不会向普通网页公开安卓 Wi‑Fi 网卡地址。若以后通过局域网地址打开，本助手会自动识别。</p>
+                        <summary>为什么不能总是自动检测服务器设备 IP？</summary>
+                        <p>当酒馆通过 <code>127.0.0.1</code> 打开时，网页只能看到这个本机地址。浏览器不会向普通网页公开服务器设备的 Wi‑Fi 网卡地址。若以后通过局域网地址打开，本助手会自动识别。</p>
                     </details>
                 </section>
 
@@ -610,10 +672,16 @@ function mountSettingsPanel() {
     container.append(panel);
 
     panel.querySelector('#cross-device-access-backend-install-command').value = BACKEND_INSTALL_COMMAND;
+    panel.querySelector('#cross-device-access-backend-start-command').value = DEFAULT_START_COMMAND;
     panel.querySelector('#cross-device-access-copy-backend-install').addEventListener('click', () => {
         void copyText(BACKEND_INSTALL_COMMAND,
             panel.querySelector('#cross-device-access-backend-copy-status'),
             '后端安装命令已复制。请先停止酒馆，再粘贴到 Termux。');
+    });
+    panel.querySelector('#cross-device-access-copy-backend-start').addEventListener('click', () => {
+        void copyText(DEFAULT_START_COMMAND,
+            panel.querySelector('#cross-device-access-backend-start-status'),
+            '官方通用启动命令已复制。粘贴到 Termux 后按回车。');
     });
     panel.querySelector('#cross-device-access-backend-preview').addEventListener('click', () => {
         void showBackendPreview(panel);
@@ -642,6 +710,7 @@ function mountSettingsPanel() {
     });
 
     panel.querySelector('#cross-device-access-device-ip').addEventListener('input', () => updateClientValidation(panel));
+    panel.querySelector('#cross-device-access-safe-start-command').value = DEFAULT_START_COMMAND;
     panel.querySelectorAll('input[name="cross-device-access-mode"]').forEach((radio) => {
         radio.addEventListener('change', () => updateClientValidation(panel));
     });
@@ -650,6 +719,11 @@ function mountSettingsPanel() {
         void copyText(panel.querySelector('#cross-device-access-apply-command').value,
             panel.querySelector('#cross-device-access-copy-status'),
             '配置步骤已复制。请先停止酒馆，再粘贴到 Termux 执行。');
+    });
+    panel.querySelector('#cross-device-access-copy-safe-start').addEventListener('click', () => {
+        void copyText(DEFAULT_START_COMMAND,
+            panel.querySelector('#cross-device-access-copy-status'),
+            '官方通用启动命令已复制。粘贴到 Termux 后按回车。');
     });
     panel.querySelector('#cross-device-access-copy-restore').addEventListener('click', () => {
         void copyText(panel.querySelector('#cross-device-access-restore-command').value,

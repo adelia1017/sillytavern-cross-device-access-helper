@@ -30,9 +30,10 @@ test('beginner guide validates inputs, generates commands and access URL without
 
         const panel = document.querySelector('.cross-device-access-helper');
         assert.ok(panel, '设置面板应挂载到扩展设置容器');
-        assert.match(panel.textContent, /跟着 4 步/);
+        assert.match(panel.textContent, /服务器设备/);
+        assert.match(panel.textContent, /访问设备/);
         assert.match(panel.textContent, /iPad \/ iPhone 怎么看/);
-        assert.match(panel.textContent, /安卓手机 IP 怎么看/);
+        assert.match(panel.textContent, /服务器设备 IP 怎么看/);
         assert.equal(panel.querySelector('#cross-device-access-safe-section').open, true);
         assert.equal(panel.querySelector('#cross-device-access-backend-section').open, false);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
@@ -43,6 +44,8 @@ test('beginner guide validates inputs, generates commands and access URL without
         assert.equal(backendSetup.hidden, true);
         assert.match(backendSetup.textContent, /没有沙箱/);
         assert.match(panel.querySelector('#cross-device-access-backend-install-command').value, /enable-server-plugins\.mjs/);
+        assert.equal(panel.querySelector('#cross-device-access-backend-start-command').value, 'cd "$HOME/SillyTavern" && bash start.sh');
+        assert.doesNotMatch(panel.textContent, /输入 st|npm start|npm run start/);
 
         const input = panel.querySelector('#cross-device-access-device-ip');
         const generate = panel.querySelector('#cross-device-access-generate');
@@ -76,10 +79,13 @@ test('beginner guide validates inputs, generates commands and access URL without
         await new Promise(resolve => setTimeout(resolve, 0));
         assert.equal(copied.length, 1);
         assert.equal(copied[0], panel.querySelector('#cross-device-access-apply-command').value);
+        panel.querySelector('#cross-device-access-copy-safe-start').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(copied[1], 'cd "$HOME/SillyTavern" && bash start.sh');
 
         const serverInput = panel.querySelector('#cross-device-access-server-ip');
         const urlBox = panel.querySelector('#cross-device-access-url-box');
-        assert.equal(serverInput.value, '', 'localhost 页面不应被误识别为手机局域网 IP');
+        assert.equal(serverInput.value, '', 'localhost 页面不应被误识别为服务器设备局域网 IP');
         assert.equal(urlBox.hidden, true);
 
         serverInput.value = '192.168.123.10';
@@ -144,6 +150,9 @@ test('a healthy backend appears beside the safe guide when its section is opened
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, false);
         assert.match(panel.querySelector('#cross-device-access-backend-badge').textContent, /已连接/);
         assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /192\.168\.1\.9:8000/);
+        assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /查看当前白名单（2 项）/);
+        assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /127\.0\.0\.1（服务器设备本机）/);
+        assert.match(panel.querySelector('.cross-device-access-helper__device-ip-help').textContent, /访问设备是 iPad/);
 
         const backendIp = panel.querySelector('#cross-device-access-backend-device-ip');
         backendIp.value = '192.168.1.17';
@@ -392,7 +401,8 @@ test('backend preview requires confirmation before applying and then shows resta
         assert.deepEqual(JSON.parse(applyRequest.options.body), { deviceIp: '192.168.1.17', mode: 'single' });
         assert.equal(applyRequest.options.headers['X-CSRF-Token'], 'csrf-test');
         assert.match(panel.querySelector('#cross-device-access-backend-result').textContent, /备份文件/);
-        assert.match(panel.querySelector('#cross-device-access-backend-result').textContent, /手动重启|输入 st/);
+        assert.match(panel.querySelector('#cross-device-access-backend-result').textContent, /官方通用启动命令/);
+        assert.equal(panel.querySelector('#cross-device-access-backend-result input').value, 'cd "$HOME/SillyTavern" && bash start.sh');
         assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /本次运行仍在使用旧配置/);
     } finally {
         dom.window.close();

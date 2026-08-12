@@ -21,6 +21,16 @@
     border-radius: 0.6rem;
 }
 
+.cross-device-access-helper__terms {
+    margin: 0.65rem 0;
+    padding: 0.65rem 0.75rem;
+    border-left: 0.35rem solid #5799df;
+}
+
+.cross-device-access-helper__terms p {
+    margin: 0.25rem 0;
+}
+
 .cross-device-access-helper__main-section {
     margin: 0.75rem 0;
     overflow: hidden;
@@ -154,6 +164,33 @@
 }
 
 .cross-device-access-helper__operation-result ol {
+    padding-left: 1.5rem;
+}
+
+.cross-device-access-helper__operation-result,
+.cross-device-access-helper__backend-recovery,
+#cross-device-access-backend-backup-status {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.cross-device-access-helper__copy-start,
+#cross-device-access-copy-backend-start,
+#cross-device-access-copy-safe-start {
+    width: 100% !important;
+    margin-top: 0.45rem;
+}
+
+.cross-device-access-helper__whitelist,
+.cross-device-access-helper__device-ip-help {
+    margin: 0.65rem 0;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0.5rem;
+}
+
+.cross-device-access-helper__whitelist ul,
+.cross-device-access-helper__device-ip-help ol {
     padding-left: 1.5rem;
 }
 
