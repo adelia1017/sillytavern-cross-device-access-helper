@@ -12,7 +12,6 @@
 }
 
 .cross-device-access-helper__hero,
-.cross-device-access-helper__mode-card,
 .cross-device-access-helper__backend-dashboard,
 .cross-device-access-helper__step,
 .cross-device-access-helper__ready,
@@ -22,19 +21,44 @@
     border-radius: 0.6rem;
 }
 
-.cross-device-access-helper__mode-card {
-    margin-bottom: 0.8rem;
-    border: 2px solid #5799df;
+.cross-device-access-helper__main-section {
+    margin: 0.75rem 0;
+    overflow: hidden;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0.65rem;
 }
 
-.cross-device-access-helper__mode-heading {
+.cross-device-access-helper__main-section > summary {
     display: flex;
     gap: 0.65rem;
     align-items: center;
     justify-content: space-between;
+    padding: 0.8rem;
+    cursor: pointer;
+    list-style-position: inside;
+}
+
+.cross-device-access-helper__main-section > summary > span:first-child {
+    min-width: 0;
+}
+
+.cross-device-access-helper__main-section > summary small {
+    display: block;
+    margin-top: 0.2rem;
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+.cross-device-access-helper__main-section[open] > summary {
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.cross-device-access-helper__section-content {
+    padding: 0.8rem;
 }
 
 .cross-device-access-helper__badge {
+    flex: 0 0 auto;
     padding: 0.25rem 0.55rem;
     border-radius: 999px;
     color: #fff;
@@ -42,19 +66,14 @@
     font-size: 0.85em;
 }
 
-.cross-device-access-helper__badge[data-mode='backend'] {
+.cross-device-access-helper__badge--safe,
+.cross-device-access-helper__badge[data-state='connected'] {
     background: #3f9e68;
 }
 
-.cross-device-access-helper__badge[data-mode='error'] {
+.cross-device-access-helper__badge[data-state='error'],
+.cross-device-access-helper__badge[data-state='missing'] {
     background: #c44f4f;
-}
-
-.cross-device-access-helper__backend-cta {
-    width: 100% !important;
-    border: 2px solid #6eb5ff !important;
-    background: color-mix(in srgb, #3d82c4 35%, transparent) !important;
-    font-weight: 700;
 }
 
 .cross-device-access-helper__retry-backend {
@@ -70,7 +89,6 @@
 
 .cross-device-access-helper__backend-setup[hidden],
 .cross-device-access-helper__backend-dashboard[hidden],
-#cross-device-access-safe-workflow[hidden],
 #cross-device-access-backend-diff[hidden] {
     display: none;
 }

@@ -33,16 +33,14 @@ test('beginner guide validates inputs, generates commands and access URL without
         assert.match(panel.textContent, /跟着 4 步/);
         assert.match(panel.textContent, /iPad \/ iPhone 怎么看/);
         assert.match(panel.textContent, /安卓手机 IP 怎么看/);
-        assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
+        assert.equal(panel.querySelector('#cross-device-access-safe-section').open, true);
+        assert.equal(panel.querySelector('#cross-device-access-backend-section').open, false);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
-        assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /安全命令模式/);
-        assert.match(panel.querySelector('#cross-device-access-mode-message').textContent, /无需服务器权限/);
-        assert.ok(panel.querySelector('#cross-device-access-retry-backend'));
-        assert.match(panel.querySelector('#cross-device-access-retry-backend').textContent, /我已安装好/);
+        assert.match(panel.querySelector('#cross-device-access-backend-badge').textContent, /未检查/);
+        assert.ok(panel.querySelector('#cross-device-access-check-backend'));
 
         const backendSetup = panel.querySelector('#cross-device-access-backend-setup');
-        panel.querySelector('#cross-device-access-backend-cta').click();
-        assert.equal(backendSetup.hidden, false);
+        assert.equal(backendSetup.hidden, true);
         assert.match(backendSetup.textContent, /没有沙箱/);
         assert.match(panel.querySelector('#cross-device-access-backend-install-command').value, /enable-server-plugins\.mjs/);
 
@@ -101,7 +99,7 @@ test('beginner guide validates inputs, generates commands and access URL without
     }
 });
 
-test('a healthy backend switches the same panel from safe mode to backend mode', async () => {
+test('a healthy backend appears beside the safe guide when its section is opened', async () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="extensions_settings"></div></body></html>', {
         url: 'http://127.0.0.1:8000/',
     });
@@ -137,17 +135,19 @@ test('a healthy backend switches the same panel from safe mode to backend mode',
         dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
         const panel = document.querySelector('.cross-device-access-helper');
         assert.deepEqual(calls, [], '页面加载时不应自动探测后端');
-        panel.querySelector('#cross-device-access-retry-backend').click();
+        const backendSection = panel.querySelector('#cross-device-access-backend-section');
+        backendSection.open = true;
+        backendSection.dispatchEvent(new dom.window.Event('toggle'));
         await new Promise(resolve => setTimeout(resolve, 0));
         assert.deepEqual(calls, ['/api/plugins/cross-device-access-helper-backend/status']);
-        assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, true);
+        assert.equal(panel.querySelector('#cross-device-access-safe-section').open, true);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, false);
-        assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /后端模式/);
+        assert.match(panel.querySelector('#cross-device-access-backend-badge').textContent, /已连接/);
         assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /192\.168\.1\.9:8000/);
 
-        panel.querySelector('#cross-device-access-use-safe-mode').click();
-        assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
-        assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
+        panel.querySelector('#cross-device-access-safe-section').open = false;
+        assert.equal(panel.querySelector('#cross-device-access-safe-section').open, false);
+        assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, false);
     } finally {
         dom.window.close();
         Object.defineProperties(globalThis, {
@@ -187,13 +187,57 @@ test('a backend config error is distinguished from a missing backend', async () 
         await import(`../index.js?backend-error-test=${Date.now()}`);
         dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
         const panel = document.querySelector('.cross-device-access-helper');
-        assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /安全命令模式/);
-        panel.querySelector('#cross-device-access-retry-backend').click();
+        const backendSection = panel.querySelector('#cross-device-access-backend-section');
+        assert.equal(backendSection.open, false);
+        backendSection.open = true;
+        backendSection.dispatchEvent(new dom.window.Event('toggle'));
         await new Promise(resolve => setTimeout(resolve, 0));
-        assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /后端检查失败/);
-        assert.match(panel.querySelector('#cross-device-access-mode-message').textContent, /重复键/);
-        assert.equal(panel.querySelector('#cross-device-access-backend-cta').hidden, true);
-        assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
+        assert.match(panel.querySelector('#cross-device-access-backend-badge').textContent, /检查失败/);
+        assert.match(panel.querySelector('#cross-device-access-backend-message').textContent, /重复键/);
+        assert.equal(panel.querySelector('#cross-device-access-backend-setup').hidden, true);
+        assert.equal(panel.querySelector('#cross-device-access-safe-section').open, true);
+    } finally {
+        dom.window.close();
+        Object.defineProperties(globalThis, {
+            window: { value: previousGlobals.window, configurable: true, writable: true },
+            document: { value: previousGlobals.document, configurable: true, writable: true },
+            navigator: { value: previousGlobals.navigator, configurable: true, writable: true },
+            fetch: { value: previousGlobals.fetch, configurable: true, writable: true },
+        });
+    }
+});
+
+test('a missing backend reveals installation help without closing the safe guide', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="extensions_settings"></div></body></html>', {
+        url: 'http://127.0.0.1:8000/',
+    });
+    const previousGlobals = {
+        window: globalThis.window,
+        document: globalThis.document,
+        navigator: globalThis.navigator,
+        fetch: globalThis.fetch,
+    };
+    Object.defineProperties(globalThis, {
+        window: { value: dom.window, configurable: true, writable: true },
+        document: { value: dom.window.document, configurable: true, writable: true },
+        navigator: { value: { clipboard: { writeText: async () => {} } }, configurable: true, writable: true },
+        fetch: {
+            value: async () => ({ ok: false, status: 404, json: async () => ({}) }),
+            configurable: true,
+            writable: true,
+        },
+    });
+    try {
+        await import(`../index.js?backend-missing-test=${Date.now()}`);
+        dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+        const panel = document.querySelector('.cross-device-access-helper');
+        const backendSection = panel.querySelector('#cross-device-access-backend-section');
+        backendSection.open = true;
+        backendSection.dispatchEvent(new dom.window.Event('toggle'));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        assert.match(panel.querySelector('#cross-device-access-backend-badge').textContent, /未连接/);
+        assert.equal(panel.querySelector('#cross-device-access-backend-setup').hidden, false);
+        assert.equal(panel.querySelector('#cross-device-access-safe-section').open, true);
     } finally {
         dom.window.close();
         Object.defineProperties(globalThis, {

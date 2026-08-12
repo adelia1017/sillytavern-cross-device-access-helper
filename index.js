@@ -100,22 +100,11 @@ function generateCommandOutput(panel) {
     panel.querySelector('#cross-device-access-commands').hidden = false;
 }
 
-function setModeLabel(panel, mode, message) {
-    const badge = panel.querySelector('#cross-device-access-mode-badge');
-    badge.dataset.mode = mode;
-    badge.textContent = mode === 'backend' ? '后端模式' : '安全命令模式';
-    panel.querySelector('#cross-device-access-mode-message').textContent = message;
-}
-
-function showSafeMode(
-    panel,
-    message = '无需服务器权限：生成安全命令，由你决定是否复制到 Termux 执行。',
-    backendAvailable = false,
-) {
-    panel.querySelector('#cross-device-access-safe-workflow').hidden = false;
-    panel.querySelector('#cross-device-access-backend-dashboard').hidden = true;
-    panel.querySelector('#cross-device-access-backend-cta').hidden = backendAvailable;
-    setModeLabel(panel, 'safe', message);
+function setBackendStatus(panel, state, label, message) {
+    const badge = panel.querySelector('#cross-device-access-backend-badge');
+    badge.dataset.state = state;
+    badge.textContent = label;
+    panel.querySelector('#cross-device-access-backend-message').textContent = message;
 }
 
 function appendStatusLine(container, label, value) {
@@ -127,11 +116,9 @@ function appendStatusLine(container, label, value) {
 }
 
 function showBackendMode(panel, status) {
-    panel.querySelector('#cross-device-access-safe-workflow').hidden = true;
     panel.querySelector('#cross-device-access-backend-setup').hidden = true;
-    panel.querySelector('#cross-device-access-backend-cta').hidden = true;
     panel.querySelector('#cross-device-access-backend-dashboard').hidden = false;
-    setModeLabel(panel, 'backend', '后端组件已连接；可自动读取当前状态并生成修改预览。');
+    setBackendStatus(panel, 'connected', '已连接', '后端组件连接正常。安全配置向导仍保留在下方。');
 
     const summary = panel.querySelector('#cross-device-access-backend-summary');
     summary.replaceChildren();
@@ -147,19 +134,24 @@ function showBackendMode(panel, status) {
 }
 
 function showBackendProblem(panel, error) {
-    showSafeMode(panel, `后端已连接，但配置检查失败：${error.message}`, true);
-    const badge = panel.querySelector('#cross-device-access-mode-badge');
-    badge.dataset.mode = 'error';
-    badge.textContent = '后端检查失败';
     panel.querySelector('#cross-device-access-backend-setup').hidden = true;
+    panel.querySelector('#cross-device-access-backend-dashboard').hidden = true;
+    setBackendStatus(panel, 'error', '检查失败', `后端已连接，但配置检查失败：${error.message}`);
+}
+
+function showBackendUnavailable(panel) {
+    panel.querySelector('#cross-device-access-backend-setup').hidden = false;
+    panel.querySelector('#cross-device-access-backend-dashboard').hidden = true;
+    setBackendStatus(panel, 'missing', '未连接', '未检测到后端组件。可以按下方教程安装，也可以忽略并继续使用安全配置向导。');
 }
 
 async function detectBackend(panel) {
     if (panel.dataset.backendCheckRunning === 'true') return false;
     panel.dataset.backendCheckRunning = 'true';
-    const retryButton = panel.querySelector('#cross-device-access-retry-backend');
+    const retryButton = panel.querySelector('#cross-device-access-check-backend');
     retryButton.disabled = true;
-    retryButton.textContent = '正在检测后端……';
+    retryButton.textContent = '正在检查后端……';
+    setBackendStatus(panel, 'checking', '检查中', '正在连接当前酒馆的后端组件……');
     try {
         showBackendMode(panel, await getBackendStatus());
         return true;
@@ -167,13 +159,13 @@ async function detectBackend(panel) {
         if (error instanceof BackendApiError && error.backendReached) {
             showBackendProblem(panel, error);
         } else {
-            showSafeMode(panel);
+            showBackendUnavailable(panel);
         }
         return false;
     } finally {
         panel.dataset.backendCheckRunning = 'false';
         retryButton.disabled = false;
-        retryButton.textContent = '我已安装好，切换到后端模式';
+        retryButton.textContent = '重新检查后端';
     }
 }
 
@@ -205,25 +197,23 @@ function createSettingsPanel() {
             <div class="inline-drawer-content">
                 <div class="cross-device-access-helper__hero">
                     <b>跟着 4 步，让 iPad 或电脑访问手机上的酒馆</b>
-                    <p>默认使用安全命令模式；安装可选后端后，同一个助手会自动切换为图形化配置。</p>
+                    <p>安全向导和可选后端并存。按需要展开其中一项，不会互相切换或隐藏。</p>
                 </div>
 
-                <section class="cross-device-access-helper__mode-card">
-                    <div class="cross-device-access-helper__mode-heading">
-                        <b>当前模式</b>
-                        <span id="cross-device-access-mode-badge" class="cross-device-access-helper__badge" data-mode="safe">安全命令模式</span>
-                    </div>
-                    <p id="cross-device-access-mode-message">无需服务器权限：生成安全命令，由你决定是否复制到 Termux 执行。</p>
-                    <button id="cross-device-access-backend-cta" class="menu_button cross-device-access-helper__backend-cta" type="button">
-                        了解并安装可选后端组件
-                    </button>
-                    <button id="cross-device-access-retry-backend" class="menu_button cross-device-access-helper__retry-backend" type="button">
-                        我已安装好，切换到后端模式
+                <details id="cross-device-access-backend-section" class="cross-device-access-helper__main-section">
+                    <summary>
+                        <span><b>可选：后端功能（测试版）</b><small>安装后可读取当前状态并预览修改</small></span>
+                        <span id="cross-device-access-backend-badge" class="cross-device-access-helper__badge" data-state="unchecked">未检查</span>
+                    </summary>
+                    <div class="cross-device-access-helper__backend-content cross-device-access-helper__section-content">
+                    <p id="cross-device-access-backend-message">展开后会检查一次后端状态；不会后台轮询。</p>
+                    <button id="cross-device-access-check-backend" class="menu_button cross-device-access-helper__retry-backend" type="button">
+                        重新检查后端
                     </button>
                     <div id="cross-device-access-backend-setup" class="cross-device-access-helper__backend-setup" hidden>
                         <h3>安装可选后端组件</h3>
-                        <p><b>为什么要安装：</b>后端可以读取当前配置和手机局域网 IP，并在确认后自动备份、修改和恢复配置。</p>
-                        <p class="cross-device-access-helper__risk"><b>权限风险：</b>所有 SillyTavern 服务器插件都没有沙箱，会继承酒馆 Node 进程的文件与网络权限。你可以继续使用下方安全模式，不安装也不影响基本功能。</p>
+                        <p><b>为什么要安装：</b>当前测试版可以读取配置和手机局域网 IP，并展示修改预览；自动备份、修改和恢复尚未开放。</p>
+                        <p class="cross-device-access-helper__risk"><b>权限风险：</b>所有 SillyTavern 服务器插件都没有沙箱，会继承酒馆 Node 进程的文件与网络权限。你可以继续使用下方安全向导，不安装也不影响基本功能。</p>
                         <ol>
                             <li>保存聊天，回到运行酒馆的 Termux。</li>
                             <li>点底部 <b>CTRL</b>，再按键盘 <b>C</b>。看到 <code>~/SillyTavern $</code> 后继续。</li>
@@ -234,9 +224,8 @@ function createSettingsPanel() {
                         <div id="cross-device-access-backend-copy-status" class="cross-device-access-helper__copy-status" role="status"></div>
                         <p><a href="${BACKEND_SOURCE_URL}" target="_blank" rel="noopener noreferrer">查看后端开源代码和权限说明</a></p>
                     </div>
-                </section>
 
-                <section id="cross-device-access-backend-dashboard" class="cross-device-access-helper__backend-dashboard" hidden>
+                    <section id="cross-device-access-backend-dashboard" class="cross-device-access-helper__backend-dashboard" hidden>
                     <h3>后端配置面板</h3>
                     <div id="cross-device-access-backend-summary"></div>
                     <label for="cross-device-access-backend-device-ip"><b>访问设备 IPv4</b></label>
@@ -249,10 +238,17 @@ function createSettingsPanel() {
                     <button id="cross-device-access-backend-preview" class="menu_button" type="button">查看修改预览</button>
                     <pre id="cross-device-access-backend-diff" hidden></pre>
                     <p>当前开发版只开放读取和预览，不会写入配置。写入流程通过真机测试后才会出现确认按钮。</p>
-                    <button id="cross-device-access-use-safe-mode" class="menu_button" type="button">暂时使用安全命令模式</button>
-                </section>
+                    </section>
+                    </div>
+                </details>
 
-                <div id="cross-device-access-safe-workflow">
+                <details id="cross-device-access-safe-section" class="cross-device-access-helper__main-section" open>
+                <summary>
+                    <span><b>安全配置向导</b><small>无需后端，只生成由你手动执行的安全命令</small></span>
+                    <span class="cross-device-access-helper__badge cross-device-access-helper__badge--safe">默认推荐</span>
+                </summary>
+                <div id="cross-device-access-safe-workflow" class="cross-device-access-helper__section-content">
+                <p class="cross-device-access-helper__safe-intro">下面四步始终可用。收起本区不会清空已经填写的内容。</p>
 
                 <section class="cross-device-access-helper__step">
                     <h3><span>1</span> 找到访问设备的 IP</h3>
@@ -364,6 +360,7 @@ function createSettingsPanel() {
                 </section>
 
                 </div>
+                </details>
 
                 <p class="cross-device-access-helper__privacy">隐私：不保存输入、不调用模型、无遥测。仅为检测可选后端而请求当前酒馆的固定同源接口，不连接外部服务。</p>
             </div>
@@ -384,11 +381,6 @@ function mountSettingsPanel() {
     container.append(panel);
 
     panel.querySelector('#cross-device-access-backend-install-command').value = BACKEND_INSTALL_COMMAND;
-    panel.querySelector('#cross-device-access-backend-cta').addEventListener('click', () => {
-        const setup = panel.querySelector('#cross-device-access-backend-setup');
-        setup.hidden = !setup.hidden;
-        if (!setup.hidden) setup.scrollIntoView?.({ block: 'nearest' });
-    });
     panel.querySelector('#cross-device-access-copy-backend-install').addEventListener('click', () => {
         void copyText(BACKEND_INSTALL_COMMAND,
             panel.querySelector('#cross-device-access-backend-copy-status'),
@@ -397,11 +389,14 @@ function mountSettingsPanel() {
     panel.querySelector('#cross-device-access-backend-preview').addEventListener('click', () => {
         void showBackendPreview(panel);
     });
-    panel.querySelector('#cross-device-access-retry-backend').addEventListener('click', () => {
+    panel.querySelector('#cross-device-access-check-backend').addEventListener('click', () => {
         void detectBackend(panel);
     });
-    panel.querySelector('#cross-device-access-use-safe-mode').addEventListener('click', () => {
-        showSafeMode(panel, '已切换到安全命令模式；需要时可再次点击“我已安装好”进入后端模式。', true);
+    panel.querySelector('#cross-device-access-backend-section').addEventListener('toggle', (event) => {
+        if (event.currentTarget.open && event.currentTarget.dataset.checked !== 'true') {
+            event.currentTarget.dataset.checked = 'true';
+            void detectBackend(panel);
+        }
     });
 
     panel.querySelector('#cross-device-access-device-ip').addEventListener('input', () => updateClientValidation(panel));
@@ -431,7 +426,6 @@ function mountSettingsPanel() {
         serverInput.value = detectedIp;
         updateServerAddress(panel, 'detected');
     }
-    showSafeMode(panel);
 }
 
 if (document.readyState === 'loading') {
