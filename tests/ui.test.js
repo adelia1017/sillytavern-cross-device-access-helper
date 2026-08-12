@@ -34,6 +34,10 @@ test('beginner guide validates inputs, generates commands and access URL without
         assert.match(panel.textContent, /访问设备/);
         assert.match(panel.textContent, /iPad \/ iPhone 怎么看/);
         assert.match(panel.textContent, /服务器设备 IP 怎么看/);
+        assert.match(panel.textContent, /使用流量并开启热点/);
+        assert.match(panel.textContent, /IPv4 默认网关/);
+        assert.match(panel.textContent, /不要使用手机设置里显示的流量 IP/);
+        assert.match(panel.textContent, /192\.168\.43\.1:8000/);
         assert.equal(panel.querySelector('#cross-device-access-safe-section').open, true);
         assert.equal(panel.querySelector('#cross-device-access-backend-section').open, false);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
@@ -153,6 +157,7 @@ test('a healthy backend appears beside the safe guide when its section is opened
         assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /查看当前白名单（2 项）/);
         assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /127\.0\.0\.1（服务器设备本机）/);
         assert.match(panel.querySelector('.cross-device-access-helper__device-ip-help').textContent, /访问设备是 iPad/);
+        assert.match(panel.querySelector('.cross-device-access-helper__device-ip-help').textContent, /公网 IP/);
 
         const backendIp = panel.querySelector('#cross-device-access-backend-device-ip');
         backendIp.value = '192.168.1.17';

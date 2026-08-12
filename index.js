@@ -494,6 +494,15 @@ function createSettingsPanel() {
                         <summary>如何找到访问设备的 IPv4？</summary>
                         <p>请在<b>访问设备</b>上查看，不是在服务器设备上查看。</p>
                         <details>
+                            <summary>服务器设备使用流量并开启热点</summary>
+                            <p>让访问设备连接服务器设备开启的热点，然后在访问设备的 Wi‑Fi 详情中查看：</p>
+                            <ul>
+                                <li><b>“IP 地址”</b>是访问设备 IP，填写到下方白名单输入框。</li>
+                                <li><b>“路由器”或“IPv4 默认网关”</b>是服务器设备的热点 IP，用来打开 <code>http://这个地址:8000</code>。</li>
+                            </ul>
+                            <p>不要使用手机设置里显示的流量 IP，也不要用网页查询到的公网 IP；本助手只处理热点形成的本地局域网。</p>
+                        </details>
+                        <details>
                             <summary>访问设备是 iPad / iPhone</summary>
                             <ol>
                                 <li>打开“设置” → “无线局域网”。</li>
@@ -542,6 +551,15 @@ function createSettingsPanel() {
                 <section class="cross-device-access-helper__step">
                     <h3><span>1</span> 找到访问设备的 IP</h3>
                     <p>请在<b>访问设备</b>上查看，不是在服务器设备上查看。</p>
+                    <details>
+                        <summary>服务器设备使用流量并开启热点时怎么看？</summary>
+                        <p>让访问设备连接服务器设备开启的热点，然后在访问设备的 Wi‑Fi 详情中查看：</p>
+                        <ul>
+                            <li><b>“IP 地址”</b>是访问设备 IP，填写到下方白名单输入框。</li>
+                            <li><b>“路由器”或“IPv4 默认网关”</b>是服务器设备的热点 IP，第 4 步会用它生成酒馆网址。</li>
+                        </ul>
+                        <p>不要使用手机设置里显示的流量 IP，也不要用网页查询到的公网 IP；本助手只处理热点形成的本地局域网。</p>
+                    </details>
                     <details>
                         <summary>iPad / iPhone 怎么看？</summary>
                         <ol>
@@ -632,6 +650,11 @@ function createSettingsPanel() {
                             <li>点当前已连接的 Wi‑Fi 或“网络详情”。</li>
                             <li>找到“IP 地址”或“IPv4 地址”。不同服务器设备的设置名称可能略有不同。</li>
                         </ol>
+                    </details>
+                    <details>
+                        <summary>服务器设备正在使用流量并开启热点</summary>
+                        <p>请在已连接该热点的<b>访问设备</b>上打开 Wi‑Fi 详情，找到“路由器”或“IPv4 默认网关”。这个地址就是此处要填写的服务器设备热点 IP。</p>
+                        <p>例如访问设备显示 IP 地址 <code>192.168.43.26</code>、路由器 <code>192.168.43.1</code>：白名单填写前者，此处填写后者，最终访问 <code>http://192.168.43.1:8000</code>。</p>
                     </details>
                     <label for="cross-device-access-server-ip"><b>服务器设备的 IPv4 地址</b></label>
                     <input id="cross-device-access-server-ip" class="text_pole" type="text" inputmode="decimal"
