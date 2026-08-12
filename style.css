@@ -133,6 +133,25 @@
     border-radius: 0.5rem;
 }
 
+.cross-device-access-helper__recommended-url {
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    border: 2px solid #3f9e68;
+    border-radius: 0.6rem;
+    background: color-mix(in srgb, #3f9e68 10%, transparent);
+}
+
+.cross-device-access-helper__recommended-url .text_pole,
+.cross-device-access-helper__recommended-url .menu_button {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.cross-device-access-helper__recommended-url small {
+    display: block;
+    margin-top: 0.4rem;
+}
+
 .cross-device-access-helper__hero {
     margin-bottom: 0.8rem;
     border-left: 0.35rem solid #3f9e68;

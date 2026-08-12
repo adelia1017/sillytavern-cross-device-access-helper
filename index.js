@@ -115,22 +115,92 @@ function appendStatusLine(container, label, value) {
     container.append(line);
 }
 
-function showBackendMode(panel, status) {
-    panel.querySelector('#cross-device-access-backend-setup').hidden = true;
-    panel.querySelector('#cross-device-access-backend-dashboard').hidden = false;
-    setBackendStatus(panel, 'connected', '已连接', '后端组件连接正常。安全配置向导仍保留在下方。');
+export function selectRecommendedAccessUrl(accessUrls, deviceIp) {
+    const device = validateDeviceIp(deviceIp);
+    if (!device.valid) return null;
+    const devicePrefix = device.ip.split('.').slice(0, 3).join('.');
 
+    return accessUrls.find((accessUrl) => {
+        try {
+            const hostname = new URL(accessUrl).hostname;
+            return hostname.split('.').slice(0, 3).join('.') === devicePrefix;
+        } catch {
+            return false;
+        }
+    }) ?? null;
+}
+
+function renderBackendNetworkAddress(panel, container, status) {
+    const accessUrls = Array.isArray(status.network?.accessUrls) ? status.network.accessUrls : [];
+    const deviceIp = panel.querySelector('#cross-device-access-backend-device-ip').value;
+    const recommended = selectRecommendedAccessUrl(accessUrls, deviceIp);
+    const box = document.createElement('div');
+    box.className = 'cross-device-access-helper__recommended-url';
+
+    if (recommended) {
+        const label = document.createElement('b');
+        label.textContent = '请在 iPad 或电脑打开这个网址';
+        const input = document.createElement('input');
+        input.className = 'text_pole';
+        input.readOnly = true;
+        input.value = recommended;
+        const button = document.createElement('button');
+        button.className = 'menu_button';
+        button.type = 'button';
+        button.textContent = '复制这个网址';
+        const copyStatus = document.createElement('small');
+        copyStatus.textContent = '已根据访问设备 IP 选择同一 Wi‑Fi 网段。';
+        button.addEventListener('click', () => void copyText(recommended, copyStatus, '网址已复制。'));
+        box.append(label, input, button, copyStatus);
+    } else if (accessUrls.length > 0) {
+        const message = document.createElement('p');
+        message.textContent = '先在下方填写 iPad 或电脑的 IPv4 地址，助手会自动选出应该打开的网址。';
+        box.append(message);
+    } else {
+        const message = document.createElement('p');
+        message.textContent = '没有检测到手机的私有局域网地址。请确认手机已连接 Wi‑Fi。';
+        box.append(message);
+    }
+    container.append(box);
+
+    if (accessUrls.length > 0) {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = '其他检测到的地址（通常不用）';
+        const list = document.createElement('ul');
+        for (const accessUrl of accessUrls.filter(url => url !== recommended)) {
+            const item = document.createElement('li');
+            item.textContent = accessUrl;
+            list.append(item);
+        }
+        if (list.childElementCount > 0) {
+            details.append(summary, list);
+            container.append(details);
+        }
+    }
+}
+
+function renderBackendSummary(panel, status) {
     const summary = panel.querySelector('#cross-device-access-backend-summary');
     summary.replaceChildren();
     appendStatusLine(summary, '当前配置', `listen=${status.config.listen}，whitelistMode=${status.config.whitelistMode}`);
     appendStatusLine(summary, '本次运行', `listen=${status.runtime.listen ?? '未知'}，whitelistMode=${status.runtime.whitelistMode ?? '未知'}`);
-    appendStatusLine(summary, '手机局域网地址', status.network.accessUrls.join('、') || '未检测到私有局域网 IPv4');
+    renderBackendNetworkAddress(panel, summary, status);
     if (status.legacyWhitelist.exists) {
         appendStatusLine(summary, '需要处理', '检测到 whitelist.txt，自动写入保持禁用');
     }
     if (!status.supportedPlatform) {
         appendStatusLine(summary, '支持范围', '第一版只在 Android Termux 开放自动写入');
     }
+}
+
+function showBackendMode(panel, status) {
+    panel.querySelector('#cross-device-access-backend-setup').hidden = true;
+    panel.querySelector('#cross-device-access-backend-dashboard').hidden = false;
+    setBackendStatus(panel, 'connected', '已连接', '后端组件连接正常。安全配置向导仍保留在下方。');
+
+    panel.backendStatus = status;
+    renderBackendSummary(panel, status);
 }
 
 function showBackendProblem(panel, error) {
@@ -391,6 +461,9 @@ function mountSettingsPanel() {
     });
     panel.querySelector('#cross-device-access-backend-preview').addEventListener('click', () => {
         void showBackendPreview(panel);
+    });
+    panel.querySelector('#cross-device-access-backend-device-ip').addEventListener('input', () => {
+        if (panel.backendStatus) renderBackendSummary(panel, panel.backendStatus);
     });
     panel.querySelector('#cross-device-access-check-backend').addEventListener('click', () => {
         void detectBackend(panel);

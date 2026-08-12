@@ -113,7 +113,7 @@ test('a healthy backend appears beside the safe guide when its section is opened
     const status = {
         config: { listen: false, whitelistMode: true, whitelist: ['::1', '127.0.0.1'] },
         runtime: { listen: false, whitelistMode: true, port: 8000 },
-        network: { accessUrls: ['http://192.168.1.9:8000'] },
+        network: { accessUrls: ['http://172.19.0.1:8000', 'http://192.168.1.9:8000'] },
         legacyWhitelist: { exists: false },
         supportedPlatform: true,
     };
@@ -144,6 +144,14 @@ test('a healthy backend appears beside the safe guide when its section is opened
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, false);
         assert.match(panel.querySelector('#cross-device-access-backend-badge').textContent, /已连接/);
         assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /192\.168\.1\.9:8000/);
+
+        const backendIp = panel.querySelector('#cross-device-access-backend-device-ip');
+        backendIp.value = '192.168.1.17';
+        backendIp.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+        const recommended = panel.querySelector('.cross-device-access-helper__recommended-url input');
+        assert.equal(recommended.value, 'http://192.168.1.9:8000');
+        assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /同一 Wi‑Fi 网段/);
+        assert.match(panel.querySelector('#cross-device-access-backend-summary details').textContent, /172\.19\.0\.1/);
 
         panel.querySelector('#cross-device-access-safe-section').open = false;
         assert.equal(panel.querySelector('#cross-device-access-safe-section').open, false);
