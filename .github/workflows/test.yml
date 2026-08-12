@@ -25,5 +25,11 @@ jobs:
       - name: Install test dependencies
         run: npm ci
 
+      - name: Rebuild local third-party assets
+        run: npm run vendor
+
+      - name: Verify committed local assets are current
+        run: git diff --exit-code -- vendor/qrcode.mjs
+
       - name: Run tests
         run: npm test

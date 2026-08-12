@@ -150,8 +150,13 @@ test('a healthy backend appears beside the safe guide when its section is opened
         backendIp.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
         const recommended = panel.querySelector('.cross-device-access-helper__recommended-url input');
         assert.equal(recommended.value, 'http://192.168.1.9:8000');
+        const qr = panel.querySelector('.cross-device-access-helper__qr');
+        assert.match(qr.src, /^data:image\/gif;base64,/);
+        assert.match(qr.alt, /192\.168\.1\.9:8000/);
         assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /同一 Wi‑Fi 网段/);
-        assert.match(panel.querySelector('#cross-device-access-backend-summary details').textContent, /172\.19\.0\.1/);
+        const detailsText = [...panel.querySelectorAll('#cross-device-access-backend-summary details')]
+            .map(details => details.textContent).join(' ');
+        assert.match(detailsText, /172\.19\.0\.1/);
 
         panel.querySelector('#cross-device-access-safe-section').open = false;
         assert.equal(panel.querySelector('#cross-device-access-safe-section').open, false);
@@ -280,6 +285,197 @@ test('guide automatically detects a private IPv4 used in the current page URL', 
             window: { value: previousGlobals.window, configurable: true, writable: true },
             document: { value: previousGlobals.document, configurable: true, writable: true },
             navigator: { value: previousGlobals.navigator, configurable: true, writable: true },
+        });
+    }
+});
+
+test('backend preview requires confirmation before applying and then shows restart steps', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="extensions_settings"></div></body></html>', {
+        url: 'http://127.0.0.1:8000/',
+    });
+    const previousGlobals = {
+        window: globalThis.window,
+        document: globalThis.document,
+        navigator: globalThis.navigator,
+        fetch: globalThis.fetch,
+    };
+    const requests = [];
+    let statusChecks = 0;
+    const baseStatus = {
+        config: { listen: false, whitelistMode: false, whitelist: ['::1', '127.0.0.1'] },
+        runtime: { listen: false, whitelistMode: false, port: 8000 },
+        network: { accessUrls: ['http://192.168.1.9:8000'] },
+        legacyWhitelist: { exists: false },
+        supportedPlatform: true,
+        writeEnabled: true,
+        backups: { available: false, latestName: null },
+        restartRequired: false,
+    };
+    dom.window.confirm = () => true;
+    Object.defineProperties(globalThis, {
+        window: { value: dom.window, configurable: true, writable: true },
+        document: { value: dom.window.document, configurable: true, writable: true },
+        navigator: { value: { clipboard: { writeText: async () => {} } }, configurable: true, writable: true },
+        fetch: {
+            value: async (url, options = {}) => {
+                requests.push({ url, options });
+                if (url === '/csrf-token') return { ok: true, json: async () => ({ token: 'csrf-test' }) };
+                if (url.endsWith('/status')) {
+                    statusChecks++;
+                    const status = statusChecks === 1 ? baseStatus : {
+                        ...baseStatus,
+                        config: { listen: true, whitelistMode: true, whitelist: ['::1', '127.0.0.1', '192.168.1.17'] },
+                        backups: { available: true, latestName: 'config.yaml.cross-device-access-helper-backup-20260812-120000-000.bak' },
+                        restartRequired: true,
+                    };
+                    return { ok: true, json: async () => ({ ok: true, data: status }) };
+                }
+                if (url.endsWith('/preview-change')) {
+                    return {
+                        ok: true,
+                        json: async () => ({
+                            ok: true,
+                            data: {
+                                request: { deviceIp: '192.168.1.17', mode: 'single', whitelistEntry: '192.168.1.17' },
+                                changes: [
+                                    { field: 'listen', before: false, after: true },
+                                    { field: 'whitelistMode', before: false, after: true },
+                                    { field: 'whitelist', before: ['::1', '127.0.0.1'], after: ['::1', '127.0.0.1', '192.168.1.17'] },
+                                ],
+                                canApply: true,
+                                applyBlockedReasons: [],
+                            },
+                        }),
+                    };
+                }
+                if (url.endsWith('/apply-lan-settings')) {
+                    return {
+                        ok: true,
+                        json: async () => ({
+                            ok: true,
+                            data: {
+                                changed: true,
+                                backupName: 'config.yaml.cross-device-access-helper-backup-20260812-120000-000.bak',
+                                restartRequired: true,
+                            },
+                        }),
+                    };
+                }
+                throw new Error(`Unexpected URL: ${url}`);
+            },
+            configurable: true,
+            writable: true,
+        },
+    });
+    try {
+        await import(`../index.js?backend-apply-test=${Date.now()}`);
+        dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+        const panel = document.querySelector('.cross-device-access-helper');
+        const backendSection = panel.querySelector('#cross-device-access-backend-section');
+        backendSection.open = true;
+        backendSection.dispatchEvent(new dom.window.Event('toggle'));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const input = panel.querySelector('#cross-device-access-backend-device-ip');
+        input.value = '192.168.1.17';
+        input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+        panel.querySelector('#cross-device-access-backend-preview').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const apply = panel.querySelector('#cross-device-access-backend-apply');
+        assert.equal(apply.hidden, false);
+        assert.match(panel.querySelector('#cross-device-access-backend-diff').textContent, /允许其他设备连接/);
+
+        apply.click();
+        await new Promise(resolve => setTimeout(resolve, 10));
+        const applyRequest = requests.find(item => item.url.endsWith('/apply-lan-settings'));
+        assert.ok(applyRequest);
+        assert.deepEqual(JSON.parse(applyRequest.options.body), { deviceIp: '192.168.1.17', mode: 'single' });
+        assert.equal(applyRequest.options.headers['X-CSRF-Token'], 'csrf-test');
+        assert.match(panel.querySelector('#cross-device-access-backend-result').textContent, /备份文件/);
+        assert.match(panel.querySelector('#cross-device-access-backend-result').textContent, /手动重启|输入 st/);
+        assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /本次运行仍在使用旧配置/);
+    } finally {
+        dom.window.close();
+        Object.defineProperties(globalThis, {
+            window: { value: previousGlobals.window, configurable: true, writable: true },
+            document: { value: previousGlobals.document, configurable: true, writable: true },
+            navigator: { value: previousGlobals.navigator, configurable: true, writable: true },
+            fetch: { value: previousGlobals.fetch, configurable: true, writable: true },
+        });
+    }
+});
+
+test('backend restore sends an empty fixed request after a second confirmation', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="extensions_settings"></div></body></html>', {
+        url: 'http://127.0.0.1:8000/',
+    });
+    const previousGlobals = {
+        window: globalThis.window,
+        document: globalThis.document,
+        navigator: globalThis.navigator,
+        fetch: globalThis.fetch,
+    };
+    const requests = [];
+    const status = {
+        config: { listen: true, whitelistMode: true, whitelist: ['::1'] },
+        runtime: { listen: true, whitelistMode: true, port: 8000 },
+        network: { accessUrls: ['http://192.168.1.9:8000'] },
+        legacyWhitelist: { exists: false },
+        supportedPlatform: true,
+        writeEnabled: true,
+        backups: { available: true, latestName: 'config.yaml.cross-device-access-helper-backup-20260812-120000-000.bak' },
+        restartRequired: false,
+    };
+    dom.window.confirm = () => true;
+    Object.defineProperties(globalThis, {
+        window: { value: dom.window, configurable: true, writable: true },
+        document: { value: dom.window.document, configurable: true, writable: true },
+        navigator: { value: { clipboard: { writeText: async () => {} } }, configurable: true, writable: true },
+        fetch: {
+            value: async (url, options = {}) => {
+                requests.push({ url, options });
+                if (url === '/csrf-token') return { ok: true, json: async () => ({ token: 'csrf-test' }) };
+                if (url.endsWith('/status')) return { ok: true, json: async () => ({ ok: true, data: status }) };
+                if (url.endsWith('/restore-latest-backup')) {
+                    return {
+                        ok: true,
+                        json: async () => ({ ok: true, data: {
+                            changed: true,
+                            restoredBackupName: status.backups.latestName,
+                            safetyBackupName: 'config.yaml.cross-device-access-helper-pre-restore-20260812-121000-000.bak',
+                            restartRequired: true,
+                        } }),
+                    };
+                }
+                throw new Error(`Unexpected URL: ${url}`);
+            },
+            configurable: true,
+            writable: true,
+        },
+    });
+    try {
+        await import(`../index.js?backend-restore-test=${Date.now()}`);
+        dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+        const panel = document.querySelector('.cross-device-access-helper');
+        const backendSection = panel.querySelector('#cross-device-access-backend-section');
+        backendSection.open = true;
+        backendSection.dispatchEvent(new dom.window.Event('toggle'));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const restore = panel.querySelector('#cross-device-access-backend-restore');
+        assert.equal(restore.hidden, false);
+        restore.click();
+        await new Promise(resolve => setTimeout(resolve, 10));
+        const request = requests.find(item => item.url.endsWith('/restore-latest-backup'));
+        assert.ok(request);
+        assert.deepEqual(JSON.parse(request.options.body), {});
+        assert.match(panel.querySelector('#cross-device-access-backend-result').textContent, /恢复前的当前配置也已备份/);
+    } finally {
+        dom.window.close();
+        Object.defineProperties(globalThis, {
+            window: { value: previousGlobals.window, configurable: true, writable: true },
+            document: { value: previousGlobals.document, configurable: true, writable: true },
+            navigator: { value: previousGlobals.navigator, configurable: true, writable: true },
+            fetch: { value: previousGlobals.fetch, configurable: true, writable: true },
         });
     }
 });

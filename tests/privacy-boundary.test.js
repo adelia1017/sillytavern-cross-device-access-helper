@@ -27,7 +27,10 @@ test('the only fetch destinations are fixed same-origin SillyTavern endpoints', 
     const source = await readFile(new URL('../backend-integration.js', import.meta.url), 'utf8');
     assert.match(source, /const API_ROOT = '\/api\/plugins\/cross-device-access-helper-backend'/);
     assert.match(source, /fetch\(`\$\{API_ROOT\}\/status`/);
-    assert.match(source, /fetch\(`\$\{API_ROOT\}\/preview-change`/);
+    assert.match(source, /postBackend\('\/preview-change'/);
+    assert.match(source, /postBackend\('\/apply-lan-settings'/);
+    assert.match(source, /postBackend\('\/restore-latest-backup'/);
+    assert.match(source, /fetch\(`\$\{API_ROOT\}\$\{endpoint\}`/);
     assert.match(source, /fetch\('\/csrf-token'/);
     assert.doesNotMatch(source, /fetch\(BACKEND_REPOSITORY/);
     assert.equal((source.match(/\bfetch\s*\(/g) ?? []).length, 3);

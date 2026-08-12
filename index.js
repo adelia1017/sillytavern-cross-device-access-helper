@@ -1,11 +1,14 @@
 import { validateDeviceIp, validateServerIp } from './ip-utils.js';
 import { generateCommands } from './command-generator.js';
+import qrcode from './vendor/qrcode.mjs';
 import {
     BACKEND_INSTALL_COMMAND,
     BACKEND_SOURCE_URL,
     BackendApiError,
+    applyBackendChange,
     getBackendStatus,
     previewBackendChange,
+    restoreLatestBackendBackup,
 } from './backend-integration.js';
 
 const EXTENSION_NAME = 'sillytavern-cross-device-access-helper';
@@ -151,7 +154,20 @@ function renderBackendNetworkAddress(panel, container, status) {
         const copyStatus = document.createElement('small');
         copyStatus.textContent = '已根据访问设备 IP 选择同一 Wi‑Fi 网段。';
         button.addEventListener('click', () => void copyText(recommended, copyStatus, '网址已复制。'));
-        box.append(label, input, button, copyStatus);
+        const qrDetails = document.createElement('details');
+        const qrSummary = document.createElement('summary');
+        qrSummary.textContent = '显示二维码（可选）';
+        const qrMessage = document.createElement('p');
+        qrMessage.textContent = '二维码只在当前浏览器本地生成，不会上传网址。';
+        const qr = qrcode(0, 'M');
+        qr.addData(recommended);
+        qr.make();
+        const qrImage = document.createElement('img');
+        qrImage.className = 'cross-device-access-helper__qr';
+        qrImage.src = qr.createDataURL(6, 12);
+        qrImage.alt = `打开 ${recommended} 的二维码`;
+        qrDetails.append(qrSummary, qrMessage, qrImage);
+        box.append(label, input, button, copyStatus, qrDetails);
     } else if (accessUrls.length > 0) {
         const message = document.createElement('p');
         message.textContent = '先在下方填写 iPad 或电脑的 IPv4 地址，助手会自动选出应该打开的网址。';
@@ -183,8 +199,9 @@ function renderBackendNetworkAddress(panel, container, status) {
 function renderBackendSummary(panel, status) {
     const summary = panel.querySelector('#cross-device-access-backend-summary');
     summary.replaceChildren();
-    appendStatusLine(summary, '当前配置', `listen=${status.config.listen}，whitelistMode=${status.config.whitelistMode}`);
-    appendStatusLine(summary, '本次运行', `listen=${status.runtime.listen ?? '未知'}，whitelistMode=${status.runtime.whitelistMode ?? '未知'}`);
+    const enabled = value => value === true ? '已开启' : value === false ? '未开启' : '未知';
+    appendStatusLine(summary, '配置文件', `局域网连接${enabled(status.config.listen)}；白名单保护${enabled(status.config.whitelistMode)}`);
+    appendStatusLine(summary, '本次运行', `局域网连接${enabled(status.runtime.listen)}；白名单保护${enabled(status.runtime.whitelistMode)}`);
     renderBackendNetworkAddress(panel, summary, status);
     if (status.legacyWhitelist.exists) {
         appendStatusLine(summary, '需要处理', '检测到 whitelist.txt，自动写入保持禁用');
@@ -192,6 +209,25 @@ function renderBackendSummary(panel, status) {
     if (!status.supportedPlatform) {
         appendStatusLine(summary, '支持范围', '第一版只在 Android Termux 开放自动写入');
     }
+    if (status.restartRequired) {
+        const notice = document.createElement('div');
+        notice.className = 'cross-device-access-helper__restart-notice';
+        notice.innerHTML = '<b>配置文件已经改变，但酒馆本次运行仍在使用旧配置。</b><br>请按下方说明手动重启一次。';
+        summary.append(notice);
+    }
+}
+
+function updateBackendRecovery(panel, status) {
+    const recovery = panel.querySelector('#cross-device-access-backend-recovery');
+    const button = panel.querySelector('#cross-device-access-backend-restore');
+    const description = panel.querySelector('#cross-device-access-backend-backup-status');
+    const available = Boolean(status.backups?.available);
+    recovery.hidden = false;
+    button.hidden = !available;
+    button.disabled = !available;
+    description.textContent = available
+        ? `最近一次可恢复备份：${status.backups.latestName}`
+        : '还没有本助手创建的配置备份。首次成功修改后，这里会出现恢复按钮。';
 }
 
 function showBackendMode(panel, status) {
@@ -201,6 +237,7 @@ function showBackendMode(panel, status) {
 
     panel.backendStatus = status;
     renderBackendSummary(panel, status);
+    updateBackendRecovery(panel, status);
 }
 
 function showBackendProblem(panel, error) {
@@ -244,16 +281,128 @@ async function detectBackend(panel) {
 
 async function showBackendPreview(panel) {
     const output = panel.querySelector('#cross-device-access-backend-diff');
+    const applyButton = panel.querySelector('#cross-device-access-backend-apply');
+    const resultBox = panel.querySelector('#cross-device-access-backend-result');
+    panel.backendPreview = null;
+    applyButton.hidden = true;
+    resultBox.hidden = true;
     output.hidden = false;
     output.textContent = '正在生成预览……';
     try {
         const deviceIp = panel.querySelector('#cross-device-access-backend-device-ip').value;
-        const preview = await previewBackendChange(deviceIp, getBackendMode(panel));
+        const mode = getBackendMode(panel);
+        const preview = await previewBackendChange(deviceIp, mode);
+        panel.backendPreview = { data: preview, deviceIp: preview.request.deviceIp, mode };
+        const fieldLabels = {
+            listen: '允许其他设备连接（listen）',
+            whitelistMode: '启用白名单保护（whitelistMode）',
+            whitelist: '允许访问的地址（whitelist）',
+        };
+        const displayValue = value => typeof value === 'boolean'
+            ? (value ? '开启' : '关闭')
+            : Array.isArray(value) ? value.join('、') : String(value);
         output.textContent = preview.changes.length
-            ? preview.changes.map(change => `${change.field}\n- ${JSON.stringify(change.before)}\n+ ${JSON.stringify(change.after)}`).join('\n\n')
+            ? preview.changes.map(change => `${fieldLabels[change.field] ?? change.field}\n当前：${displayValue(change.before)}\n修改后：${displayValue(change.after)}`).join('\n\n')
             : '无需修改：目标配置已经存在。';
+        if (preview.applyBlockedReasons?.length) {
+            output.textContent += `\n\n暂时不能自动应用：\n${preview.applyBlockedReasons.join('\n')}`;
+        }
+        applyButton.hidden = !preview.canApply;
+        applyButton.disabled = !preview.canApply;
     } catch (error) {
         output.textContent = error.message;
+    }
+}
+
+function invalidateBackendPreview(panel) {
+    panel.backendPreview = null;
+    panel.querySelector('#cross-device-access-backend-diff').hidden = true;
+    panel.querySelector('#cross-device-access-backend-apply').hidden = true;
+    panel.querySelector('#cross-device-access-backend-result').hidden = true;
+}
+
+function renderRestartSteps(container, heading) {
+    container.replaceChildren();
+    const title = document.createElement('b');
+    title.textContent = heading;
+    const list = document.createElement('ol');
+    for (const text of [
+        '保存正在进行的聊天，回到运行酒馆的 Termux。',
+        '点底部 CTRL，再按键盘 C；看到 ~/SillyTavern $ 后继续。',
+        '输入 st 并回车（如果 st 不可用，则输入 npm start）。',
+        '酒馆重新打开后，回到这里点击“重新检查后端”。',
+    ]) {
+        const item = document.createElement('li');
+        item.textContent = text;
+        list.append(item);
+    }
+    container.append(title, list);
+    container.hidden = false;
+}
+
+async function applyBackendPreview(panel) {
+    const previewState = panel.backendPreview;
+    const currentIp = panel.querySelector('#cross-device-access-backend-device-ip').value.trim();
+    const currentMode = getBackendMode(panel);
+    if (!previewState || previewState.deviceIp !== currentIp || previewState.mode !== currentMode) {
+        await showBackendPreview(panel);
+        return;
+    }
+    const confirmed = window.confirm(
+        '即将只修改 listen、whitelistMode 和 whitelist。\n\n'
+        + '操作会先创建配置备份，不会修改端口、认证或其他字段，也不会自动重启酒馆。\n\n确认应用这次预览吗？',
+    );
+    if (!confirmed) return;
+
+    const button = panel.querySelector('#cross-device-access-backend-apply');
+    const result = panel.querySelector('#cross-device-access-backend-result');
+    button.disabled = true;
+    button.textContent = '正在安全写入…';
+    try {
+        const applied = await applyBackendChange(previewState.deviceIp, previewState.mode);
+        if (applied.changed) {
+            renderRestartSteps(result, `配置已安全保存；备份文件：${applied.backupName}`);
+        } else {
+            result.textContent = '无需修改：当前配置已经符合目标。';
+            result.hidden = false;
+        }
+        panel.backendPreview = null;
+        button.hidden = true;
+        await detectBackend(panel);
+    } catch (error) {
+        result.textContent = `没有覆盖原配置：${error.message}`;
+        result.hidden = false;
+        button.disabled = false;
+    } finally {
+        button.textContent = '确认并安全应用';
+    }
+}
+
+async function restoreBackendBackup(panel) {
+    const name = panel.backendStatus?.backups?.latestName ?? '最近一次备份';
+    const confirmed = window.confirm(
+        `将恢复：${name}\n\n恢复前还会先备份当前配置。恢复后通常需要手动重启；如果旧配置没有开放局域网，重启后其他设备可能无法继续访问。\n\n确认恢复吗？`,
+    );
+    if (!confirmed) return;
+    const button = panel.querySelector('#cross-device-access-backend-restore');
+    const result = panel.querySelector('#cross-device-access-backend-result');
+    button.disabled = true;
+    button.textContent = '正在安全恢复…';
+    try {
+        const restored = await restoreLatestBackendBackup();
+        if (restored.changed) {
+            renderRestartSteps(result, `已恢复 ${restored.restoredBackupName}；恢复前的当前配置也已备份。`);
+        } else {
+            result.textContent = '当前配置与最近备份相同，无需恢复。';
+            result.hidden = false;
+        }
+        await detectBackend(panel);
+    } catch (error) {
+        result.textContent = `没有覆盖原配置：${error.message}`;
+        result.hidden = false;
+    } finally {
+        button.disabled = false;
+        button.textContent = '恢复最近一次备份';
     }
 }
 
@@ -285,7 +434,7 @@ function createSettingsPanel() {
                     </button>
                     <div id="cross-device-access-backend-setup" class="cross-device-access-helper__backend-setup" hidden>
                         <h3>安装可选后端组件</h3>
-                        <p><b>为什么要安装：</b>后端可以读取配置和手机局域网 IP，并展示修改预览。目前不会自动写入或恢复配置。</p>
+                        <p><b>为什么要安装：</b>后端可以读取当前配置和手机局域网 IP；在你查看预览并二次确认后，自动备份、修改或恢复配置。</p>
                         <p class="cross-device-access-helper__risk"><b>权限风险：</b>所有 SillyTavern 服务器插件都没有沙箱，会继承酒馆 Node 进程的文件与网络权限。你可以继续使用下方安全向导，不安装也不影响基本功能。</p>
                         <ol>
                             <li>保存聊天，回到运行酒馆的 Termux。</li>
@@ -310,7 +459,14 @@ function createSettingsPanel() {
                     </fieldset>
                     <button id="cross-device-access-backend-preview" class="menu_button" type="button">查看修改预览</button>
                     <pre id="cross-device-access-backend-diff" hidden></pre>
-                    <p>目前只提供读取和预览，不会写入配置。</p>
+                    <button id="cross-device-access-backend-apply" class="menu_button cross-device-access-helper__apply" type="button" hidden>确认并安全应用</button>
+                    <p class="cross-device-access-helper__write-boundary">自动操作严格限制为 <code>listen</code>、<code>whitelistMode</code> 和 <code>whitelist</code>；先备份、再验证临时文件，成功后才替换原配置。</p>
+                    <section id="cross-device-access-backend-recovery" class="cross-device-access-helper__backend-recovery" hidden>
+                        <h4>恢复配置</h4>
+                        <p id="cross-device-access-backend-backup-status"></p>
+                        <button id="cross-device-access-backend-restore" class="menu_button" type="button" hidden>恢复最近一次备份</button>
+                    </section>
+                    <div id="cross-device-access-backend-result" class="cross-device-access-helper__operation-result" role="status" hidden></div>
                     </section>
                     </div>
                 </details>
@@ -462,8 +618,18 @@ function mountSettingsPanel() {
     panel.querySelector('#cross-device-access-backend-preview').addEventListener('click', () => {
         void showBackendPreview(panel);
     });
+    panel.querySelector('#cross-device-access-backend-apply').addEventListener('click', () => {
+        void applyBackendPreview(panel);
+    });
+    panel.querySelector('#cross-device-access-backend-restore').addEventListener('click', () => {
+        void restoreBackendBackup(panel);
+    });
     panel.querySelector('#cross-device-access-backend-device-ip').addEventListener('input', () => {
+        invalidateBackendPreview(panel);
         if (panel.backendStatus) renderBackendSummary(panel, panel.backendStatus);
+    });
+    panel.querySelectorAll('input[name="cross-device-backend-mode"]').forEach((radio) => {
+        radio.addEventListener('change', () => invalidateBackendPreview(panel));
     });
     panel.querySelector('#cross-device-access-check-backend').addEventListener('click', () => {
         void detectBackend(panel);

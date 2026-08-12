@@ -64,14 +64,26 @@ async function getCsrfHeaders() {
 }
 
 export async function previewBackendChange(deviceIp, mode) {
-    const response = await fetch(`${API_ROOT}/preview-change`, {
+    return postBackend('/preview-change', { deviceIp, mode });
+}
+
+async function postBackend(endpoint, body) {
+    const response = await fetch(`${API_ROOT}${endpoint}`, {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
         headers: await getCsrfHeaders(),
-        body: JSON.stringify({ deviceIp, mode }),
+        body: JSON.stringify(body),
     });
     return readJson(response);
+}
+
+export async function applyBackendChange(deviceIp, mode) {
+    return postBackend('/apply-lan-settings', { deviceIp, mode });
+}
+
+export async function restoreLatestBackendBackup() {
+    return postBackend('/restore-latest-backup', {});
 }
 
 export const BACKEND_SOURCE_URL = BACKEND_REPOSITORY;
