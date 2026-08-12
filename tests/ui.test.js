@@ -236,6 +236,7 @@ test('a missing backend reveals installation help without closing the safe guide
         backendSection.dispatchEvent(new dom.window.Event('toggle'));
         await new Promise(resolve => setTimeout(resolve, 0));
         assert.match(panel.querySelector('#cross-device-access-backend-badge').textContent, /未连接/);
+        assert.match(panel.querySelector('#cross-device-access-backend-message').textContent, /HTTP 404/);
         assert.equal(panel.querySelector('#cross-device-access-backend-setup').hidden, false);
         assert.equal(panel.querySelector('#cross-device-access-safe-section').open, true);
     } finally {

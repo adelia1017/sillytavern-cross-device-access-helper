@@ -139,10 +139,13 @@ function showBackendProblem(panel, error) {
     setBackendStatus(panel, 'error', '检查失败', `后端已连接，但配置检查失败：${error.message}`);
 }
 
-function showBackendUnavailable(panel) {
+function showBackendUnavailable(panel, error) {
     panel.querySelector('#cross-device-access-backend-setup').hidden = false;
     panel.querySelector('#cross-device-access-backend-dashboard').hidden = true;
-    setBackendStatus(panel, 'missing', '未连接', '未检测到后端组件。可以按下方教程安装，也可以忽略并继续使用安全配置向导。');
+    const reason = error?.status
+        ? `后端接口返回 HTTP ${error.status}`
+        : '浏览器没有收到后端接口响应';
+    setBackendStatus(panel, 'missing', '未连接', `${reason}。可以按下方教程检查安装，也可以忽略并继续使用安全配置向导。`);
 }
 
 async function detectBackend(panel) {
@@ -159,7 +162,7 @@ async function detectBackend(panel) {
         if (error instanceof BackendApiError && error.backendReached) {
             showBackendProblem(panel, error);
         } else {
-            showBackendUnavailable(panel);
+            showBackendUnavailable(panel, error);
         }
         return false;
     } finally {
@@ -202,7 +205,7 @@ function createSettingsPanel() {
 
                 <details id="cross-device-access-backend-section" class="cross-device-access-helper__main-section">
                     <summary>
-                        <span><b>可选：后端功能（测试版）</b><small>安装后可读取当前状态并预览修改</small></span>
+                        <span><b>可选：后端功能</b><small>安装后可读取当前状态并预览修改</small></span>
                         <span id="cross-device-access-backend-badge" class="cross-device-access-helper__badge" data-state="unchecked">未检查</span>
                     </summary>
                     <div class="cross-device-access-helper__backend-content cross-device-access-helper__section-content">
@@ -212,7 +215,7 @@ function createSettingsPanel() {
                     </button>
                     <div id="cross-device-access-backend-setup" class="cross-device-access-helper__backend-setup" hidden>
                         <h3>安装可选后端组件</h3>
-                        <p><b>为什么要安装：</b>当前测试版可以读取配置和手机局域网 IP，并展示修改预览；自动备份、修改和恢复尚未开放。</p>
+                        <p><b>为什么要安装：</b>后端可以读取配置和手机局域网 IP，并展示修改预览。目前不会自动写入或恢复配置。</p>
                         <p class="cross-device-access-helper__risk"><b>权限风险：</b>所有 SillyTavern 服务器插件都没有沙箱，会继承酒馆 Node 进程的文件与网络权限。你可以继续使用下方安全向导，不安装也不影响基本功能。</p>
                         <ol>
                             <li>保存聊天，回到运行酒馆的 Termux。</li>
@@ -237,7 +240,7 @@ function createSettingsPanel() {
                     </fieldset>
                     <button id="cross-device-access-backend-preview" class="menu_button" type="button">查看修改预览</button>
                     <pre id="cross-device-access-backend-diff" hidden></pre>
-                    <p>当前开发版只开放读取和预览，不会写入配置。写入流程通过真机测试后才会出现确认按钮。</p>
+                    <p>目前只提供读取和预览，不会写入配置。</p>
                     </section>
                     </div>
                 </details>
