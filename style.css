@@ -1,0 +1,123 @@
+.cross-device-access-helper .inline-drawer-content {
+    padding-bottom: 0.75rem;
+}
+
+.cross-device-access-helper__notice,
+.cross-device-access-helper__explanation,
+.cross-device-access-helper__preview,
+.cross-device-access-helper__privacy {
+    padding: 0.75rem;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0.5rem;
+}
+
+.cross-device-access-helper__commands {
+    margin-top: 0.75rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+}
+
+.cross-device-access-helper__commands[hidden] {
+    display: none;
+}
+
+.cross-device-access-helper__commands textarea {
+    width: 100%;
+    margin: 0.35rem 0;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.8em;
+    white-space: pre;
+}
+
+.cross-device-access-helper__copy-status {
+    min-height: 1.5em;
+    margin-top: 0.35rem;
+}
+
+.cross-device-access-helper .menu_button {
+    display: inline-flex;
+    width: auto;
+    height: auto !important;
+    min-height: 2.5rem;
+    padding: 0.45rem 0.8rem;
+    align-items: center;
+    justify-content: center;
+    writing-mode: horizontal-tb;
+    white-space: normal;
+    line-height: 1.25;
+}
+
+.cross-device-access-helper #cross-device-access-generate {
+    width: 100%;
+}
+
+.cross-device-access-helper__notice {
+    border-left: 0.3rem solid #3f9e68;
+}
+
+.cross-device-access-helper__explanation {
+    margin-bottom: 0.75rem;
+}
+
+.cross-device-access-helper__explanation p {
+    margin: 0.25rem 0;
+}
+
+.cross-device-access-helper #cross-device-access-device-ip {
+    width: 100%;
+    margin-top: 0.35rem;
+}
+
+.cross-device-access-helper__status {
+    min-height: 1.5em;
+    margin: 0.25rem 0 0.75rem;
+    font-size: 0.9em;
+}
+
+.cross-device-access-helper__status--valid {
+    color: #55c983;
+}
+
+.cross-device-access-helper__status--error {
+    color: #ff6b6b;
+}
+
+.cross-device-access-helper__modes {
+    margin: 0.75rem 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0.5rem;
+}
+
+.cross-device-access-helper__modes .checkbox_label {
+    align-items: flex-start;
+    margin: 0.5rem 0;
+}
+
+.cross-device-access-helper__modes input[type='radio'] {
+    flex: 0 0 auto;
+    margin-top: 0.2rem;
+}
+
+.cross-device-access-helper__preview {
+    display: block;
+    margin: 0.75rem 0;
+    overflow-wrap: anywhere;
+    border-left: 0.3rem solid #5799df;
+}
+
+.cross-device-access-helper__preview[hidden] {
+    display: none;
+}
+
+.cross-device-access-helper__privacy {
+    margin-bottom: 0;
+    font-size: 0.9em;
+    opacity: 0.85;
+}
+
+@media (max-width: 600px) {
+    .cross-device-access-helper .menu_button {
+        max-width: 100%;
+    }
+}

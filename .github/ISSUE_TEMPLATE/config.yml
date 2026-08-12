@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 私下报告安全漏洞
+    url: https://github.com/adelia1017/sillytavern-cross-device-access-helper/security/advisories/new
+    about: 可能泄露数据、越权修改或绕过安全边界的问题请不要公开提交。

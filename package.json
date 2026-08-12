@@ -1,0 +1,13 @@
+{
+  "name": "sillytavern-cross-device-access-helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/unit-runner.js && node tests/integration-runner.js"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0",
+    "yaml": "2.8.3"
+  }
+}
