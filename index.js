@@ -109,7 +109,7 @@ function setModeLabel(panel, mode, message) {
 
 function showSafeMode(
     panel,
-    message = '未检测到后端组件。你可以直接使用下方安全命令模式。',
+    message = '无需服务器权限：生成安全命令，由你决定是否复制到 Termux 执行。',
     backendAvailable = false,
 ) {
     panel.querySelector('#cross-device-access-safe-workflow').hidden = false;
@@ -173,21 +173,8 @@ async function detectBackend(panel) {
     } finally {
         panel.dataset.backendCheckRunning = 'false';
         retryButton.disabled = false;
-        retryButton.textContent = '重新检测后端';
+        retryButton.textContent = '我已安装好，切换到后端模式';
     }
-}
-
-function startBackendDetection(panel) {
-    const retry = () => {
-        if (panel.dataset.backendDetectionPaused === 'true') return;
-        if (panel.querySelector('#cross-device-access-mode-badge').dataset.mode === 'backend') return;
-        void detectBackend(panel);
-    };
-    window.setInterval(retry, 5000);
-    window.addEventListener('focus', retry);
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) retry();
-    });
 }
 
 async function showBackendPreview(panel) {
@@ -226,12 +213,12 @@ function createSettingsPanel() {
                         <b>当前模式</b>
                         <span id="cross-device-access-mode-badge" class="cross-device-access-helper__badge" data-mode="safe">安全命令模式</span>
                     </div>
-                    <p id="cross-device-access-mode-message">正在检查是否安装了可选后端……</p>
+                    <p id="cross-device-access-mode-message">无需服务器权限：生成安全命令，由你决定是否复制到 Termux 执行。</p>
                     <button id="cross-device-access-backend-cta" class="menu_button cross-device-access-helper__backend-cta" type="button">
-                        安装后端组件，切换为自动配置
+                        了解并安装可选后端组件
                     </button>
                     <button id="cross-device-access-retry-backend" class="menu_button cross-device-access-helper__retry-backend" type="button">
-                        重新检测后端
+                        我已安装好，切换到后端模式
                     </button>
                     <div id="cross-device-access-backend-setup" class="cross-device-access-helper__backend-setup" hidden>
                         <h3>安装可选后端组件</h3>
@@ -411,12 +398,10 @@ function mountSettingsPanel() {
         void showBackendPreview(panel);
     });
     panel.querySelector('#cross-device-access-retry-backend').addEventListener('click', () => {
-        panel.dataset.backendDetectionPaused = 'false';
         void detectBackend(panel);
     });
     panel.querySelector('#cross-device-access-use-safe-mode').addEventListener('click', () => {
-        panel.dataset.backendDetectionPaused = 'true';
-        showSafeMode(panel, '已临时切换到安全命令模式；后端仍已安装，刷新页面后会重新进入后端模式。', true);
+        showSafeMode(panel, '已切换到安全命令模式；需要时可再次点击“我已安装好”进入后端模式。', true);
     });
 
     panel.querySelector('#cross-device-access-device-ip').addEventListener('input', () => updateClientValidation(panel));
@@ -446,8 +431,7 @@ function mountSettingsPanel() {
         serverInput.value = detectedIp;
         updateServerAddress(panel, 'detected');
     }
-    void detectBackend(panel);
-    startBackendDetection(panel);
+    showSafeMode(panel);
 }
 
 if (document.readyState === 'loading') {

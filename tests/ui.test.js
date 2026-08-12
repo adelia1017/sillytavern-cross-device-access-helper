@@ -36,8 +36,9 @@ test('beginner guide validates inputs, generates commands and access URL without
         assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
         assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /安全命令模式/);
-        assert.match(panel.querySelector('#cross-device-access-mode-message').textContent, /未检测到后端/);
+        assert.match(panel.querySelector('#cross-device-access-mode-message').textContent, /无需服务器权限/);
         assert.ok(panel.querySelector('#cross-device-access-retry-backend'));
+        assert.match(panel.querySelector('#cross-device-access-retry-backend').textContent, /我已安装好/);
 
         const backendSetup = panel.querySelector('#cross-device-access-backend-setup');
         panel.querySelector('#cross-device-access-backend-cta').click();
@@ -134,8 +135,10 @@ test('a healthy backend switches the same panel from safe mode to backend mode',
     try {
         await import(`../index.js?backend-ui-test=${Date.now()}`);
         dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
-        await new Promise(resolve => setTimeout(resolve, 0));
         const panel = document.querySelector('.cross-device-access-helper');
+        assert.deepEqual(calls, [], '页面加载时不应自动探测后端');
+        panel.querySelector('#cross-device-access-retry-backend').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
         assert.deepEqual(calls, ['/api/plugins/cross-device-access-helper-backend/status']);
         assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, true);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, false);
@@ -145,7 +148,6 @@ test('a healthy backend switches the same panel from safe mode to backend mode',
         panel.querySelector('#cross-device-access-use-safe-mode').click();
         assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
-        assert.equal(panel.dataset.backendDetectionPaused, 'true');
     } finally {
         dom.window.close();
         Object.defineProperties(globalThis, {
@@ -184,8 +186,10 @@ test('a backend config error is distinguished from a missing backend', async () 
     try {
         await import(`../index.js?backend-error-test=${Date.now()}`);
         dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
-        await new Promise(resolve => setTimeout(resolve, 0));
         const panel = document.querySelector('.cross-device-access-helper');
+        assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /安全命令模式/);
+        panel.querySelector('#cross-device-access-retry-backend').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
         assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /后端检查失败/);
         assert.match(panel.querySelector('#cross-device-access-mode-message').textContent, /重复键/);
         assert.equal(panel.querySelector('#cross-device-access-backend-cta').hidden, true);
