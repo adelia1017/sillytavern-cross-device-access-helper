@@ -3,6 +3,7 @@ import { generateCommands } from './command-generator.js';
 import {
     BACKEND_INSTALL_COMMAND,
     BACKEND_SOURCE_URL,
+    BackendApiError,
     getBackendStatus,
     previewBackendChange,
 } from './backend-integration.js';
@@ -108,7 +109,7 @@ function setModeLabel(panel, mode, message) {
 
 function showSafeMode(
     panel,
-    message = '无需服务器权限：生成安全命令，由你决定是否复制到 Termux 执行。',
+    message = '未检测到后端组件。你可以直接使用下方安全命令模式。',
     backendAvailable = false,
 ) {
     panel.querySelector('#cross-device-access-safe-workflow').hidden = false;
@@ -145,12 +146,48 @@ function showBackendMode(panel, status) {
     }
 }
 
+function showBackendProblem(panel, error) {
+    showSafeMode(panel, `后端已连接，但配置检查失败：${error.message}`, true);
+    const badge = panel.querySelector('#cross-device-access-mode-badge');
+    badge.dataset.mode = 'error';
+    badge.textContent = '后端检查失败';
+    panel.querySelector('#cross-device-access-backend-setup').hidden = true;
+}
+
 async function detectBackend(panel) {
+    if (panel.dataset.backendCheckRunning === 'true') return false;
+    panel.dataset.backendCheckRunning = 'true';
+    const retryButton = panel.querySelector('#cross-device-access-retry-backend');
+    retryButton.disabled = true;
+    retryButton.textContent = '正在检测后端……';
     try {
         showBackendMode(panel, await getBackendStatus());
-    } catch {
-        showSafeMode(panel);
+        return true;
+    } catch (error) {
+        if (error instanceof BackendApiError && error.backendReached) {
+            showBackendProblem(panel, error);
+        } else {
+            showSafeMode(panel);
+        }
+        return false;
+    } finally {
+        panel.dataset.backendCheckRunning = 'false';
+        retryButton.disabled = false;
+        retryButton.textContent = '重新检测后端';
     }
+}
+
+function startBackendDetection(panel) {
+    const retry = () => {
+        if (panel.dataset.backendDetectionPaused === 'true') return;
+        if (panel.querySelector('#cross-device-access-mode-badge').dataset.mode === 'backend') return;
+        void detectBackend(panel);
+    };
+    window.setInterval(retry, 5000);
+    window.addEventListener('focus', retry);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) retry();
+    });
 }
 
 async function showBackendPreview(panel) {
@@ -192,6 +229,9 @@ function createSettingsPanel() {
                     <p id="cross-device-access-mode-message">正在检查是否安装了可选后端……</p>
                     <button id="cross-device-access-backend-cta" class="menu_button cross-device-access-helper__backend-cta" type="button">
                         安装后端组件，切换为自动配置
+                    </button>
+                    <button id="cross-device-access-retry-backend" class="menu_button cross-device-access-helper__retry-backend" type="button">
+                        重新检测后端
                     </button>
                     <div id="cross-device-access-backend-setup" class="cross-device-access-helper__backend-setup" hidden>
                         <h3>安装可选后端组件</h3>
@@ -370,7 +410,12 @@ function mountSettingsPanel() {
     panel.querySelector('#cross-device-access-backend-preview').addEventListener('click', () => {
         void showBackendPreview(panel);
     });
+    panel.querySelector('#cross-device-access-retry-backend').addEventListener('click', () => {
+        panel.dataset.backendDetectionPaused = 'false';
+        void detectBackend(panel);
+    });
     panel.querySelector('#cross-device-access-use-safe-mode').addEventListener('click', () => {
+        panel.dataset.backendDetectionPaused = 'true';
         showSafeMode(panel, '已临时切换到安全命令模式；后端仍已安装，刷新页面后会重新进入后端模式。', true);
     });
 
@@ -402,6 +447,7 @@ function mountSettingsPanel() {
         updateServerAddress(panel, 'detected');
     }
     void detectBackend(panel);
+    startBackendDetection(panel);
 }
 
 if (document.readyState === 'loading') {

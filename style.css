@@ -46,11 +46,20 @@
     background: #3f9e68;
 }
 
+.cross-device-access-helper__badge[data-mode='error'] {
+    background: #c44f4f;
+}
+
 .cross-device-access-helper__backend-cta {
     width: 100% !important;
     border: 2px solid #6eb5ff !important;
     background: color-mix(in srgb, #3d82c4 35%, transparent) !important;
     font-weight: 700;
+}
+
+.cross-device-access-helper__retry-backend {
+    width: 100% !important;
+    margin-top: 0.5rem;
 }
 
 .cross-device-access-helper__backend-setup {

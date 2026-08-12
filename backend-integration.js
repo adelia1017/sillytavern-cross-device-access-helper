@@ -13,23 +13,42 @@ else
 fi
 node "$PLUGIN_DIR/scripts/enable-server-plugins.mjs"`;
 
+export class BackendApiError extends Error {
+    constructor(message, { backendReached = false, code = 'UNKNOWN', status = 0 } = {}) {
+        super(message);
+        this.name = 'BackendApiError';
+        this.backendReached = backendReached;
+        this.code = code;
+        this.status = status;
+    }
+}
+
 async function readJson(response) {
     const value = await response.json().catch(() => null);
     if (!response.ok || !value?.ok) {
-        throw new Error(value?.error?.message ?? `请求失败（HTTP ${response.status}）`);
+        throw new BackendApiError(value?.error?.message ?? `请求失败（HTTP ${response.status}）`, {
+            backendReached: response.status !== 404 && typeof value?.error?.code === 'string',
+            code: value?.error?.code ?? 'HTTP_ERROR',
+            status: response.status,
+        });
     }
     return value.data;
 }
 
 export async function getBackendStatus() {
     const signal = typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(5000) : undefined;
-    const response = await fetch(`${API_ROOT}/status`, {
-        method: 'GET',
-        cache: 'no-store',
-        credentials: 'same-origin',
-        signal,
-    });
-    return readJson(response);
+    try {
+        const response = await fetch(`${API_ROOT}/status`, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            signal,
+        });
+        return readJson(response);
+    } catch (error) {
+        if (error instanceof BackendApiError) throw error;
+        throw new BackendApiError('未连接到后端组件。', { backendReached: false, code: 'UNREACHABLE' });
+    }
 }
 
 async function getCsrfHeaders() {

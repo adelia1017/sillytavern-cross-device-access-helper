@@ -36,6 +36,8 @@ test('beginner guide validates inputs, generates commands and access URL without
         assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
         assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /安全命令模式/);
+        assert.match(panel.querySelector('#cross-device-access-mode-message').textContent, /未检测到后端/);
+        assert.ok(panel.querySelector('#cross-device-access-retry-backend'));
 
         const backendSetup = panel.querySelector('#cross-device-access-backend-setup');
         panel.querySelector('#cross-device-access-backend-cta').click();
@@ -143,6 +145,51 @@ test('a healthy backend switches the same panel from safe mode to backend mode',
         panel.querySelector('#cross-device-access-use-safe-mode').click();
         assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
+        assert.equal(panel.dataset.backendDetectionPaused, 'true');
+    } finally {
+        dom.window.close();
+        Object.defineProperties(globalThis, {
+            window: { value: previousGlobals.window, configurable: true, writable: true },
+            document: { value: previousGlobals.document, configurable: true, writable: true },
+            navigator: { value: previousGlobals.navigator, configurable: true, writable: true },
+            fetch: { value: previousGlobals.fetch, configurable: true, writable: true },
+        });
+    }
+});
+
+test('a backend config error is distinguished from a missing backend', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="extensions_settings"></div></body></html>', {
+        url: 'http://127.0.0.1:8000/',
+    });
+    const previousGlobals = {
+        window: globalThis.window,
+        document: globalThis.document,
+        navigator: globalThis.navigator,
+        fetch: globalThis.fetch,
+    };
+    Object.defineProperties(globalThis, {
+        window: { value: dom.window, configurable: true, writable: true },
+        document: { value: dom.window.document, configurable: true, writable: true },
+        navigator: { value: { clipboard: { writeText: async () => {} } }, configurable: true, writable: true },
+        fetch: {
+            value: async () => ({
+                ok: false,
+                status: 422,
+                json: async () => ({ ok: false, error: { code: 'DUPLICATE_KEY', message: 'config.yaml 含有重复键。' } }),
+            }),
+            configurable: true,
+            writable: true,
+        },
+    });
+    try {
+        await import(`../index.js?backend-error-test=${Date.now()}`);
+        dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const panel = document.querySelector('.cross-device-access-helper');
+        assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /后端检查失败/);
+        assert.match(panel.querySelector('#cross-device-access-mode-message').textContent, /重复键/);
+        assert.equal(panel.querySelector('#cross-device-access-backend-cta').hidden, true);
+        assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
     } finally {
         dom.window.close();
         Object.defineProperties(globalThis, {
