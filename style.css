@@ -12,12 +12,98 @@
 }
 
 .cross-device-access-helper__hero,
+.cross-device-access-helper__mode-card,
+.cross-device-access-helper__backend-dashboard,
 .cross-device-access-helper__step,
 .cross-device-access-helper__ready,
 .cross-device-access-helper__url-box {
     padding: 0.8rem;
     border: 1px solid var(--SmartThemeBorderColor);
     border-radius: 0.6rem;
+}
+
+.cross-device-access-helper__mode-card {
+    margin-bottom: 0.8rem;
+    border: 2px solid #5799df;
+}
+
+.cross-device-access-helper__mode-heading {
+    display: flex;
+    gap: 0.65rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cross-device-access-helper__badge {
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    color: #fff;
+    background: #3d82c4;
+    font-size: 0.85em;
+}
+
+.cross-device-access-helper__badge[data-mode='backend'] {
+    background: #3f9e68;
+}
+
+.cross-device-access-helper__backend-cta {
+    width: 100% !important;
+    border: 2px solid #6eb5ff !important;
+    background: color-mix(in srgb, #3d82c4 35%, transparent) !important;
+    font-weight: 700;
+}
+
+.cross-device-access-helper__backend-setup {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+}
+
+.cross-device-access-helper__backend-setup[hidden],
+.cross-device-access-helper__backend-dashboard[hidden],
+#cross-device-access-safe-workflow[hidden],
+#cross-device-access-backend-diff[hidden] {
+    display: none;
+}
+
+.cross-device-access-helper__backend-setup textarea {
+    width: 100%;
+    min-height: 12rem;
+    margin: 0.5rem 0;
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.8em;
+    white-space: pre;
+}
+
+.cross-device-access-helper__backend-setup ol {
+    padding-left: 1.5rem;
+}
+
+.cross-device-access-helper__risk {
+    padding: 0.65rem;
+    border-left: 0.35rem solid #d69e2e;
+    background: color-mix(in srgb, #d69e2e 12%, transparent);
+}
+
+.cross-device-access-helper__backend-dashboard {
+    margin: 0.75rem 0;
+    border-left: 0.35rem solid #3f9e68;
+}
+
+.cross-device-access-helper__backend-dashboard > .text_pole {
+    width: 100%;
+    margin-top: 0.35rem;
+}
+
+.cross-device-access-helper__backend-dashboard pre {
+    max-height: 20rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    padding: 0.75rem;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0.5rem;
 }
 
 .cross-device-access-helper__hero {

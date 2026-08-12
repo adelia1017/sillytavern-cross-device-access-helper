@@ -11,6 +11,8 @@ test('mobile buttons override theme rules that can stretch or rotate labels', as
         'min-height: 2.5rem',
         '#cross-device-access-generate',
         'width: 100%',
+        '.cross-device-access-helper__backend-cta',
+        '#cross-device-access-safe-workflow[hidden]',
     ]) {
         assert.ok(source.includes(rule), rule);
     }

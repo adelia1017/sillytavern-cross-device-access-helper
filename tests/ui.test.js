@@ -33,6 +33,15 @@ test('beginner guide validates inputs, generates commands and access URL without
         assert.match(panel.textContent, /跟着 4 步/);
         assert.match(panel.textContent, /iPad \/ iPhone 怎么看/);
         assert.match(panel.textContent, /安卓手机 IP 怎么看/);
+        assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
+        assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
+        assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /安全命令模式/);
+
+        const backendSetup = panel.querySelector('#cross-device-access-backend-setup');
+        panel.querySelector('#cross-device-access-backend-cta').click();
+        assert.equal(backendSetup.hidden, false);
+        assert.match(backendSetup.textContent, /没有沙箱/);
+        assert.match(panel.querySelector('#cross-device-access-backend-install-command').value, /enable-server-plugins\.mjs/);
 
         const input = panel.querySelector('#cross-device-access-device-ip');
         const generate = panel.querySelector('#cross-device-access-generate');
@@ -52,7 +61,7 @@ test('beginner guide validates inputs, generates commands and access URL without
         assert.equal(generate.disabled, false);
         assert.match(panel.querySelector('#cross-device-access-scope-preview').textContent, /192\.168\.123\.17/);
 
-        const networkMode = panel.querySelector('input[value="network"]');
+        const networkMode = panel.querySelector('input[name="cross-device-access-mode"][value="network"]');
         networkMode.checked = true;
         networkMode.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
         assert.match(panel.querySelector('#cross-device-access-scope-preview').textContent, /192\.168\.123\.0\/24/);
@@ -85,6 +94,62 @@ test('beginner guide validates inputs, generates commands and access URL without
             window: { value: previousGlobals.window, configurable: true, writable: true },
             document: { value: previousGlobals.document, configurable: true, writable: true },
             navigator: { value: previousGlobals.navigator, configurable: true, writable: true },
+        });
+    }
+});
+
+test('a healthy backend switches the same panel from safe mode to backend mode', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="extensions_settings"></div></body></html>', {
+        url: 'http://127.0.0.1:8000/',
+    });
+    const previousGlobals = {
+        window: globalThis.window,
+        document: globalThis.document,
+        navigator: globalThis.navigator,
+        fetch: globalThis.fetch,
+    };
+    const calls = [];
+    const status = {
+        config: { listen: false, whitelistMode: true, whitelist: ['::1', '127.0.0.1'] },
+        runtime: { listen: false, whitelistMode: true, port: 8000 },
+        network: { accessUrls: ['http://192.168.1.9:8000'] },
+        legacyWhitelist: { exists: false },
+        supportedPlatform: true,
+    };
+    Object.defineProperties(globalThis, {
+        window: { value: dom.window, configurable: true, writable: true },
+        document: { value: dom.window.document, configurable: true, writable: true },
+        navigator: { value: { clipboard: { writeText: async () => {} } }, configurable: true, writable: true },
+        fetch: {
+            value: async (url) => {
+                calls.push(url);
+                return { ok: true, json: async () => ({ ok: true, data: status }) };
+            },
+            configurable: true,
+            writable: true,
+        },
+    });
+    try {
+        await import(`../index.js?backend-ui-test=${Date.now()}`);
+        dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const panel = document.querySelector('.cross-device-access-helper');
+        assert.deepEqual(calls, ['/api/plugins/cross-device-access-helper-backend/status']);
+        assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, true);
+        assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, false);
+        assert.match(panel.querySelector('#cross-device-access-mode-badge').textContent, /后端模式/);
+        assert.match(panel.querySelector('#cross-device-access-backend-summary').textContent, /192\.168\.1\.9:8000/);
+
+        panel.querySelector('#cross-device-access-use-safe-mode').click();
+        assert.equal(panel.querySelector('#cross-device-access-safe-workflow').hidden, false);
+        assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
+    } finally {
+        dom.window.close();
+        Object.defineProperties(globalThis, {
+            window: { value: previousGlobals.window, configurable: true, writable: true },
+            document: { value: previousGlobals.document, configurable: true, writable: true },
+            navigator: { value: previousGlobals.navigator, configurable: true, writable: true },
+            fetch: { value: previousGlobals.fetch, configurable: true, writable: true },
         });
     }
 });
