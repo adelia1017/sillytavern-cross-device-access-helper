@@ -11,6 +11,89 @@
     border-radius: 0.5rem;
 }
 
+.cross-device-access-helper__hero,
+.cross-device-access-helper__step,
+.cross-device-access-helper__ready,
+.cross-device-access-helper__url-box {
+    padding: 0.8rem;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0.6rem;
+}
+
+.cross-device-access-helper__hero {
+    margin-bottom: 0.8rem;
+    border-left: 0.35rem solid #3f9e68;
+}
+
+.cross-device-access-helper__hero p,
+.cross-device-access-helper__step > p {
+    margin: 0.35rem 0;
+}
+
+.cross-device-access-helper__step {
+    margin: 0.75rem 0;
+}
+
+.cross-device-access-helper__step h3 {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0 0 0.65rem;
+    font-size: 1.05em;
+}
+
+.cross-device-access-helper__step h3 > span {
+    display: inline-flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: 0 0 1.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    background: #3d82c4;
+}
+
+.cross-device-access-helper__step details {
+    margin: 0.45rem 0;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 0.45rem;
+}
+
+.cross-device-access-helper__step summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.cross-device-access-helper__step ol {
+    margin: 0.5rem 0 0.2rem;
+    padding-left: 1.5rem;
+}
+
+.cross-device-access-helper__step .text_pole {
+    width: 100%;
+    margin-top: 0.35rem;
+}
+
+.cross-device-access-helper__ready {
+    margin: 0.75rem 0;
+    border-left: 0.35rem solid #3f9e68;
+}
+
+.cross-device-access-helper__recovery {
+    margin-top: 0.75rem !important;
+}
+
+.cross-device-access-helper__url-box {
+    margin-top: 0.65rem;
+    border-left: 0.35rem solid #5799df;
+}
+
+.cross-device-access-helper__url-box[hidden] {
+    display: none;
+}
+
 .cross-device-access-helper__commands {
     margin-top: 0.75rem;
     padding-top: 0.25rem;
@@ -48,6 +131,11 @@
 }
 
 .cross-device-access-helper #cross-device-access-generate {
+    width: 100%;
+}
+
+.cross-device-access-helper #cross-device-access-copy-apply,
+.cross-device-access-helper #cross-device-access-copy-url {
     width: 100%;
 }
 

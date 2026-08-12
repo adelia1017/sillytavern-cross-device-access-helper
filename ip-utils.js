@@ -69,3 +69,28 @@ export function validateDeviceIp(value) {
         subnet24: `${octets[0]}.${octets[1]}.${octets[2]}.0/24`,
     });
 }
+
+export function validateServerIp(value) {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) {
+        return Object.freeze({ valid: false, code: 'empty', message: '请输入安卓手机的局域网 IPv4 地址。' });
+    }
+
+    const octets = parseIpv4(normalized);
+    if (!octets) {
+        return Object.freeze({ valid: false, code: 'format', message: '地址格式不正确，例如：192.168.123.10。' });
+    }
+
+    if (!isPrivateIpv4(octets)) {
+        return Object.freeze({ valid: false, code: 'not-private', message: '这里应填写安卓手机的私有局域网地址。' });
+    }
+
+    const ip = octets.join('.');
+    return Object.freeze({
+        valid: true,
+        code: 'valid',
+        message: '安卓手机 IP 有效，访问地址已生成。',
+        ip,
+        accessUrl: `http://${ip}:8000`,
+    });
+}

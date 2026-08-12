@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 
-test('settings UI validates input, switches scope, and generates commands without persistence', async () => {
+test('beginner guide validates inputs, generates commands and access URL without persistence', async () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="extensions_settings"></div></body></html>', {
         url: 'http://localhost:8000/',
     });
@@ -30,6 +30,9 @@ test('settings UI validates input, switches scope, and generates commands withou
 
         const panel = document.querySelector('.cross-device-access-helper');
         assert.ok(panel, '设置面板应挂载到扩展设置容器');
+        assert.match(panel.textContent, /跟着 4 步/);
+        assert.match(panel.textContent, /iPad \/ iPhone 怎么看/);
+        assert.match(panel.textContent, /安卓手机 IP 怎么看/);
 
         const input = panel.querySelector('#cross-device-access-device-ip');
         const generate = panel.querySelector('#cross-device-access-generate');
@@ -64,8 +67,44 @@ test('settings UI validates input, switches scope, and generates commands withou
         assert.equal(copied.length, 1);
         assert.equal(copied[0], panel.querySelector('#cross-device-access-apply-command').value);
 
+        const serverInput = panel.querySelector('#cross-device-access-server-ip');
+        const urlBox = panel.querySelector('#cross-device-access-url-box');
+        assert.equal(serverInput.value, '', 'localhost 页面不应被误识别为手机局域网 IP');
+        assert.equal(urlBox.hidden, true);
+
+        serverInput.value = '192.168.123.10';
+        serverInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+        assert.equal(urlBox.hidden, false);
+        assert.equal(panel.querySelector('#cross-device-access-url').value, 'http://192.168.123.10:8000');
+
         assert.equal(dom.window.localStorage.length, 0);
         assert.equal(dom.window.sessionStorage.length, 0);
+    } finally {
+        dom.window.close();
+        Object.defineProperties(globalThis, {
+            window: { value: previousGlobals.window, configurable: true, writable: true },
+            document: { value: previousGlobals.document, configurable: true, writable: true },
+            navigator: { value: previousGlobals.navigator, configurable: true, writable: true },
+        });
+    }
+});
+
+test('guide automatically detects a private IPv4 used in the current page URL', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="extensions_settings"></div></body></html>', {
+        url: 'http://192.168.50.9:8000/',
+    });
+    const previousGlobals = { window: globalThis.window, document: globalThis.document, navigator: globalThis.navigator };
+    Object.defineProperties(globalThis, {
+        window: { value: dom.window, configurable: true, writable: true },
+        document: { value: dom.window.document, configurable: true, writable: true },
+        navigator: { value: { clipboard: { writeText: async () => {} } }, configurable: true, writable: true },
+    });
+    try {
+        await import(`../index.js?detect-test=${Date.now()}`);
+        dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+        assert.equal(document.querySelector('#cross-device-access-server-ip').value, '192.168.50.9');
+        assert.equal(document.querySelector('#cross-device-access-url').value, 'http://192.168.50.9:8000');
+        assert.match(document.querySelector('#cross-device-access-server-validation').textContent, /自动识别/);
     } finally {
         dom.window.close();
         Object.defineProperties(globalThis, {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isPrivateIpv4, parseIpv4, validateDeviceIp } from '../ip-utils.js';
+import { isPrivateIpv4, parseIpv4, validateDeviceIp, validateServerIp } from '../ip-utils.js';
 
 test('parseIpv4 parses canonical IPv4 addresses', () => {
     assert.deepEqual(parseIpv4('192.168.123.17'), [192, 168, 123, 17]);
@@ -45,4 +45,16 @@ test('validateDeviceIp rejects empty and public addresses', () => {
 test('validateDeviceIp does not assume that .0 and .255 are invalid under every subnet mask', () => {
     assert.equal(validateDeviceIp('192.168.1.0').valid, true);
     assert.equal(validateDeviceIp('192.168.1.255').valid, true);
+});
+
+test('validateServerIp generates a local access URL only for private IPv4', () => {
+    assert.deepEqual(validateServerIp('192.168.123.10'), {
+        valid: true,
+        code: 'valid',
+        message: '安卓手机 IP 有效，访问地址已生成。',
+        ip: '192.168.123.10',
+        accessUrl: 'http://192.168.123.10:8000',
+    });
+    assert.equal(validateServerIp('127.0.0.1').valid, false);
+    assert.equal(validateServerIp('8.8.8.8').valid, false);
 });
