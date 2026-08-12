@@ -14,6 +14,11 @@ test('mobile buttons override theme rules that can stretch or rotate labels', as
         '.cross-device-access-helper__main-section',
         '.cross-device-access-helper__retry-backend',
         "[data-state='connected']",
+        "content: '点击展开  ▼'",
+        "content: '点击收起  ▲'",
+        '#cross-device-access-safe-section > summary',
+        '#cross-device-access-backend-section > summary',
+        'summary:focus-visible',
     ]) {
         assert.ok(source.includes(rule), rule);
     }

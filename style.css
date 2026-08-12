@@ -34,8 +34,9 @@
 .cross-device-access-helper__main-section {
     margin: 0.75rem 0;
     overflow: hidden;
-    border: 1px solid var(--SmartThemeBorderColor);
-    border-radius: 0.65rem;
+    border: 2px solid var(--SmartThemeBorderColor);
+    border-radius: 0.75rem;
+    box-shadow: 0 0.25rem 0.75rem rgb(0 0 0 / 16%);
 }
 
 .cross-device-access-helper__main-section > summary {
@@ -43,9 +44,55 @@
     gap: 0.65rem;
     align-items: center;
     justify-content: space-between;
-    padding: 0.8rem;
+    min-height: 4.25rem;
+    padding: 0.85rem;
     cursor: pointer;
-    list-style-position: inside;
+    list-style: none;
+    user-select: none;
+    transition: filter 120ms ease, transform 120ms ease;
+}
+
+.cross-device-access-helper__main-section > summary::-webkit-details-marker {
+    display: none;
+}
+
+#cross-device-access-safe-section > summary {
+    border-left: 0.45rem solid #3f9e68;
+    background: color-mix(in srgb, #3f9e68 18%, transparent);
+}
+
+#cross-device-access-backend-section > summary {
+    border-left: 0.45rem solid #3d82c4;
+    background: color-mix(in srgb, #3d82c4 18%, transparent);
+}
+
+.cross-device-access-helper__main-section > summary:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+.cross-device-access-helper__main-section > summary:active {
+    transform: translateY(1px);
+}
+
+.cross-device-access-helper__main-section > summary:focus-visible {
+    outline: 3px solid #5799df;
+    outline-offset: -3px;
+}
+
+.cross-device-access-helper__main-section > summary::after {
+    content: '点击展开  ▼';
+    flex: 0 0 auto;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid currentColor;
+    border-radius: 0.45rem;
+    font-size: 0.82em;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.cross-device-access-helper__main-section[open] > summary::after {
+    content: '点击收起  ▲';
 }
 
 .cross-device-access-helper__main-section > summary > span:first-child {
@@ -413,5 +460,19 @@
 @media (max-width: 600px) {
     .cross-device-access-helper .menu_button {
         max-width: 100%;
+    }
+
+    .cross-device-access-helper__main-section > summary {
+        flex-wrap: wrap;
+    }
+
+    .cross-device-access-helper__main-section > summary > span:first-child {
+        flex: 1 1 calc(100% - 7rem);
+    }
+
+    .cross-device-access-helper__main-section > summary::after {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
     }
 }
