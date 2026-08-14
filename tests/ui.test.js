@@ -38,6 +38,9 @@ test('beginner guide validates inputs, generates commands and access URL without
         assert.match(panel.textContent, /IPv4 默认网关/);
         assert.match(panel.textContent, /不要使用手机设置里显示的流量 IP/);
         assert.match(panel.textContent, /192\.168\.43\.1:8000/);
+        assert.match(panel.textContent, /Windows 10 \/ 11/);
+        assert.match(panel.textContent, /PowerShell/);
+        assert.match(panel.textContent, /专用网络/);
         assert.equal(panel.querySelector('#cross-device-access-safe-section').open, true);
         assert.equal(panel.querySelector('#cross-device-access-backend-section').open, false);
         assert.equal(panel.querySelector('#cross-device-access-backend-dashboard').hidden, true);
@@ -86,6 +89,25 @@ test('beginner guide validates inputs, generates commands and access URL without
         panel.querySelector('#cross-device-access-copy-safe-start').click();
         await new Promise(resolve => setTimeout(resolve, 0));
         assert.equal(copied[1], 'cd "$HOME/SillyTavern" && bash start.sh');
+
+        const windowsPlatform = panel.querySelector('input[name="cross-device-access-platform"][value="windows"]');
+        windowsPlatform.checked = true;
+        windowsPlatform.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+        assert.equal(commands.hidden, true, '切换系统后旧命令必须隐藏');
+        assert.equal(panel.querySelector('#cross-device-access-safe-start-command').value, '.\\Start.bat');
+        assert.equal(panel.querySelector('[data-safe-platform="android-termux"]').hidden, true);
+        assert.equal(panel.querySelector('[data-safe-platform="windows"]').hidden, false);
+
+        generate.click();
+        assert.equal(commands.hidden, false);
+        assert.match(panel.querySelector('#cross-device-access-apply-command').value, /^& \{\n\$ErrorActionPreference/);
+        assert.match(panel.querySelector('#cross-device-access-apply-command').value, /PowerShell/);
+        panel.querySelector('#cross-device-access-copy-apply').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(copied[2], panel.querySelector('#cross-device-access-apply-command').value);
+        panel.querySelector('#cross-device-access-copy-safe-start').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(copied[3], '.\\Start.bat');
 
         const serverInput = panel.querySelector('#cross-device-access-server-ip');
         const urlBox = panel.querySelector('#cross-device-access-url-box');

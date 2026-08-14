@@ -1,5 +1,14 @@
 # 更新日志
 
+## 0.4.0 - 2026-08-14
+
+- 安全配置向导新增 Android Termux / Windows 10/11 服务器系统选择，选择不会保存。
+- Windows 模式生成可整段复制的 PowerShell 命令，只处理当前 SillyTavern 文件夹中的 `config.yaml`。
+- Windows 命令沿用重复键拒绝、允许字段限制、临时文件验证、`fsync`、时间戳备份和恢复前安全备份流程。
+- 新增 Windows 停止酒馆、从安装目录打开 PowerShell、使用 `Start.bat` 启动、查找 IPv4 和防火墙专用网络教程。
+- 修正 Windows 上需要以可写句柄执行 `fsync` 的跨平台差异。
+- 可选后端支持范围不变，仍只支持 Android Termux。
+
 ## 0.3.3 - 2026-08-12
 
 - 将安全配置向导和后端功能的折叠标题改为醒目的大按钮样式。

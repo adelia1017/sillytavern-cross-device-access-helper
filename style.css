@@ -440,6 +440,22 @@
     margin-top: 0.2rem;
 }
 
+.cross-device-access-helper__platform-step {
+    border-left: 0.35rem solid #5799df;
+}
+
+.cross-device-access-helper__platform-modes .checkbox_label {
+    padding: 0.55rem;
+    border: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor) 75%, transparent);
+    border-radius: 0.45rem;
+    cursor: pointer;
+}
+
+.cross-device-access-helper__platform-modes .checkbox_label:has(input:checked) {
+    border-color: #5799df;
+    background: color-mix(in srgb, #5799df 14%, transparent);
+}
+
 .cross-device-access-helper__preview {
     display: block;
     margin: 0.75rem 0;

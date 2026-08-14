@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -108,7 +109,30 @@ try {
     assert.equal(fs.readdirSync(failureDir).filter(name => name.includes('backup')).length, 0);
     assert.equal(fs.readdirSync(failureDir).filter(name => name.endsWith('.tmp')).length, 0);
 
-    console.log('✔ 隔离集成测试：安全修改、字段保留、重复键拒绝、失败保护、备份恢复全部通过');
+    if (process.platform === 'win32') {
+        const windowsDir = path.join(testRoot, 'windows-powershell');
+        fs.mkdirSync(windowsDir);
+        fs.writeFileSync(path.join(windowsDir, 'config.yaml'), original, 'utf8');
+        fs.writeFileSync(path.join(windowsDir, 'package.json'), '{"name":"sillytavern-test-fixture"}\n', 'utf8');
+        const windowsCommands = generateCommands(validation, 'single', 'windows');
+        const applyResult = spawnSync('powershell.exe', [
+            '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', windowsCommands.apply,
+        ], { cwd: windowsDir, encoding: 'utf8' });
+        assert.equal(applyResult.status, 0, `${applyResult.stdout}\n${applyResult.stderr}`);
+        const windowsChanged = readConfig(windowsDir);
+        assert.equal(windowsChanged.value.listen, true);
+        assert.equal(windowsChanged.value.whitelistMode, true);
+        assert.ok(windowsChanged.value.whitelist.includes('192.168.123.17'));
+        assert.equal(windowsChanged.value.port, 8123);
+
+        const restoreResult = spawnSync('powershell.exe', [
+            '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', windowsCommands.restore,
+        ], { cwd: windowsDir, encoding: 'utf8' });
+        assert.equal(restoreResult.status, 0, `${restoreResult.stdout}\n${restoreResult.stderr}`);
+        assert.equal(fs.readFileSync(path.join(windowsDir, 'config.yaml'), 'utf8'), original);
+    }
+
+    console.log('✔ 隔离集成测试：安全修改、字段保留、重复键拒绝、失败保护、备份恢复和 Windows PowerShell 命令全部通过');
 } finally {
     process.chdir(originalCwd);
     if (originalArg === undefined) delete process.argv[2];

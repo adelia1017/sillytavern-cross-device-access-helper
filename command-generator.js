@@ -89,7 +89,7 @@ try {
     fs.writeFileSync(tempPath, nextSource, { encoding: 'utf8', flag: 'wx', mode: fileInfo.mode });
     tempCreated = true;
 
-    const tempHandle = fs.openSync(tempPath, 'r');
+    const tempHandle = fs.openSync(tempPath, 'r+');
     try {
         fs.fsyncSync(tempHandle);
     } finally {
@@ -112,7 +112,7 @@ try {
     if (!fs.readFileSync(backupPath).equals(Buffer.from(originalSource, 'utf8'))) {
         fail('备份内容校验失败，拒绝替换原配置。');
     }
-    const backupHandle = fs.openSync(backupPath, 'r');
+    const backupHandle = fs.openSync(backupPath, 'r+');
     try {
         fs.fsyncSync(backupHandle);
     } finally {
@@ -182,7 +182,7 @@ try {
     tempCreated = true;
     validateYaml(fs.readFileSync(tempPath, 'utf8'), '恢复临时文件');
 
-    const tempHandle = fs.openSync(tempPath, 'r');
+    const tempHandle = fs.openSync(tempPath, 'r+');
     try {
         fs.fsyncSync(tempHandle);
     } finally {
@@ -193,7 +193,7 @@ try {
     if (!fs.readFileSync(safetyPath).equals(fs.readFileSync(configPath))) {
         fail('恢复前安全备份校验失败，拒绝替换当前配置。');
     }
-    const safetyHandle = fs.openSync(safetyPath, 'r');
+    const safetyHandle = fs.openSync(safetyPath, 'r+');
     try {
         fs.fsyncSync(safetyHandle);
     } finally {
@@ -220,18 +220,39 @@ function wrapTermuxCommand(script, args = []) {
     return `cd -- "$HOME/SillyTavern" || exit 1\nnode --input-type=module -${argSuffix} <<'ST_CROSS_DEVICE_HELPER'\n${script}\nST_CROSS_DEVICE_HELPER`;
 }
 
-export function generateCommands(validation, mode) {
+function wrapWindowsPowerShellCommand(script, args = []) {
+    const serializedArgs = args.map(value => `'${value.replaceAll("'", "''")}'`).join(' ');
+    const argSuffix = serializedArgs ? ` ${serializedArgs}` : '';
+    return `& {
+$ErrorActionPreference = 'Stop'
+$OutputEncoding = [System.Text.Encoding]::UTF8
+if (-not (Test-Path -LiteralPath '.\\config.yaml' -PathType Leaf) -or -not (Test-Path -LiteralPath '.\\package.json' -PathType Leaf)) {
+    Write-Error '当前文件夹不像 SillyTavern 安装根目录。请先在同时包含 config.yaml 和 package.json 的 SillyTavern 文件夹中打开 PowerShell，再重新粘贴本命令。'
+} else {
+@'
+${script}
+'@ | node --input-type=module -${argSuffix}
+}
+}`;
+}
+
+export function generateCommands(validation, mode, platform = 'android-termux') {
     if (!validation?.valid) {
         throw new TypeError('必须先提供经过验证的客户端 IPv4 地址。');
     }
     if (mode !== 'single' && mode !== 'network') {
         throw new TypeError('模式只能是 single 或 network。');
     }
+    if (platform !== 'android-termux' && platform !== 'windows') {
+        throw new TypeError('服务器系统只能是 android-termux 或 windows。');
+    }
 
     const target = mode === 'network' ? validation.subnet24 : validation.ip;
+    const wrapCommand = platform === 'windows' ? wrapWindowsPowerShellCommand : wrapTermuxCommand;
     return Object.freeze({
         target,
-        apply: wrapTermuxCommand(APPLY_SCRIPT, [target]),
-        restore: wrapTermuxCommand(RESTORE_SCRIPT),
+        platform,
+        apply: wrapCommand(APPLY_SCRIPT, [target]),
+        restore: wrapCommand(RESTORE_SCRIPT),
     });
 }

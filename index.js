@@ -13,6 +13,15 @@ import {
 
 const EXTENSION_NAME = 'sillytavern-cross-device-access-helper';
 const DEFAULT_START_COMMAND = 'cd "$HOME/SillyTavern" && bash start.sh';
+const WINDOWS_START_COMMAND = '.\\Start.bat';
+
+function getSelectedServerPlatform(panel) {
+    return panel.querySelector('input[name="cross-device-access-platform"]:checked')?.value ?? 'android-termux';
+}
+
+function getSafeStartCommand(panel) {
+    return getSelectedServerPlatform(panel) === 'windows' ? WINDOWS_START_COMMAND : DEFAULT_START_COMMAND;
+}
 
 function getBackendMode(panel) {
     return panel.querySelector('input[name="cross-device-backend-mode"]:checked')?.value ?? 'single';
@@ -97,11 +106,21 @@ function generateCommandOutput(panel) {
     const result = validateDeviceIp(panel.querySelector('#cross-device-access-device-ip').value);
     if (!result.valid) return;
 
-    const commands = generateCommands(result, getSelectedMode(panel));
+    const commands = generateCommands(result, getSelectedMode(panel), getSelectedServerPlatform(panel));
     panel.querySelector('#cross-device-access-apply-command').value = commands.apply;
     panel.querySelector('#cross-device-access-restore-command').value = commands.restore;
     panel.querySelector('#cross-device-access-copy-status').textContent = '';
     panel.querySelector('#cross-device-access-commands').hidden = false;
+}
+
+function updateSafePlatform(panel) {
+    const platform = getSelectedServerPlatform(panel);
+    panel.querySelectorAll('[data-safe-platform]').forEach((element) => {
+        element.hidden = element.dataset.safePlatform !== platform;
+    });
+    panel.querySelector('#cross-device-access-safe-start-command').value = getSafeStartCommand(panel);
+    panel.querySelector('#cross-device-access-commands').hidden = true;
+    panel.querySelector('#cross-device-access-copy-status').textContent = '';
 }
 
 function setBackendStatus(panel, state, label, message) {
@@ -452,11 +471,11 @@ function createSettingsPanel() {
                 <div class="cross-device-access-helper__hero">
                     <b>先分清两台设备</b>
                     <div class="cross-device-access-helper__terms">
-                        <p><b>服务器设备：</b>安装了 Termux、正在运行 SillyTavern 的这台设备。</p>
+                        <p><b>服务器设备：</b>安装并正在运行 SillyTavern 的这台设备，可以是 Android Termux 或 Windows 电脑。</p>
                         <p><b>访问设备：</b>你想用来打开酒馆网页的另一台设备。</p>
                     </div>
                     <p><b>目标：</b>让访问设备通过局域网打开服务器设备上的酒馆。</p>
-                    <p>安全向导和可选后端并存。按需要展开其中一项，不会互相切换或隐藏。</p>
+                    <p>安全向导支持 Android Termux 和 Windows；可选后端目前仍只支持 Android Termux。</p>
                 </div>
 
                 <details id="cross-device-access-backend-section" class="cross-device-access-helper__main-section">
@@ -471,6 +490,7 @@ function createSettingsPanel() {
                     </button>
                     <div id="cross-device-access-backend-setup" class="cross-device-access-helper__backend-setup" hidden>
                         <h3>安装可选后端组件</h3>
+                        <p><b>当前支持：</b>后端组件目前只支持 Android Termux。Windows 服务器设备请使用下方安全配置向导。</p>
                         <p><b>为什么要安装：</b>后端可以读取当前配置和服务器设备局域网 IP；在你查看预览并二次确认后，自动备份、修改或恢复配置。</p>
                         <p class="cross-device-access-helper__risk"><b>权限风险：</b>所有 SillyTavern 服务器插件都没有沙箱，会继承酒馆 Node 进程的文件与网络权限。你可以继续使用下方安全向导，不安装也不影响基本功能。</p>
                         <ol>
@@ -546,7 +566,23 @@ function createSettingsPanel() {
                     <span class="cross-device-access-helper__badge cross-device-access-helper__badge--safe">默认推荐</span>
                 </summary>
                 <div id="cross-device-access-safe-workflow" class="cross-device-access-helper__section-content">
-                <p class="cross-device-access-helper__safe-intro">下面四步始终可用。收起本区不会清空已经填写的内容。</p>
+                <p class="cross-device-access-helper__safe-intro">先选择服务器设备的系统，再完成下面四步。选择不会保存，收起本区不会清空已经填写的内容。</p>
+
+                <section class="cross-device-access-helper__step cross-device-access-helper__platform-step">
+                    <h3>服务器设备使用什么系统？</h3>
+                    <fieldset class="cross-device-access-helper__modes cross-device-access-helper__platform-modes">
+                        <label class="checkbox_label">
+                            <input type="radio" name="cross-device-access-platform" value="android-termux" checked>
+                            <span><b>Android Termux</b><br>酒馆安装在手机的 <code>~/SillyTavern</code>。</span>
+                        </label>
+                        <label class="checkbox_label">
+                            <input type="radio" name="cross-device-access-platform" value="windows">
+                            <span><b>Windows 10 / 11</b><br>原版 SillyTavern Git 安装，使用 <code>Start.bat</code> 启动。</span>
+                        </label>
+                    </fieldset>
+                    <p data-safe-platform="android-termux">将生成可以粘贴到 Termux 的命令。</p>
+                    <p data-safe-platform="windows" hidden>将生成可以粘贴到 Windows PowerShell 的命令。命令只处理当前 SillyTavern 文件夹中的 <code>config.yaml</code>。</p>
+                </section>
 
                 <section class="cross-device-access-helper__step">
                     <h3><span>1</span> 找到访问设备的 IP</h3>
@@ -609,7 +645,7 @@ function createSettingsPanel() {
                     <button id="cross-device-access-generate" class="menu_button" type="button" disabled>生成下一步</button>
 
                     <div id="cross-device-access-commands" class="cross-device-access-helper__commands" hidden>
-                        <div class="cross-device-access-helper__ready">
+                        <div class="cross-device-access-helper__ready" data-safe-platform="android-termux">
                             <b>配置步骤已准备好</b>
                             <ol>
                                 <li>先保存正在进行的聊天。</li>
@@ -617,6 +653,21 @@ function createSettingsPanel() {
                                 <li>点击下方按钮复制，粘贴到 Termux 后按回车。</li>
                                 <li>看到“配置修改成功”后，复制下方官方通用启动命令，粘贴并回车。</li>
                             </ol>
+                        </div>
+                        <div class="cross-device-access-helper__ready" data-safe-platform="windows" hidden>
+                            <b>Windows 配置步骤已准备好</b>
+                            <ol>
+                                <li>先保存正在进行的聊天。</li>
+                                <li>回到正在运行酒馆的黑色命令窗口，按 <code>Ctrl+C</code> 手动停止酒馆。</li>
+                                <li>打开 SillyTavern 安装文件夹，点击文件管理器顶部的地址栏，输入 <code>powershell</code> 并回车。</li>
+                                <li>点击下方按钮复制配置步骤，粘贴到新打开的 PowerShell 后回车。</li>
+                                <li>看到“配置修改成功”后，复制下方启动命令，粘贴并回车；也可以关闭 PowerShell 后双击 <code>Start.bat</code>。</li>
+                            </ol>
+                            <p><b>不要</b>以管理员身份运行酒馆或本命令，也不要在其他文件夹中执行。</p>
+                            <details>
+                                <summary>Windows 防火墙弹窗怎么选？</summary>
+                                <p>第一次允许局域网访问时，Windows 可能询问是否允许 Node.js 通信。只勾选<b>专用网络</b>，不要勾选公用网络。如果没有弹窗且其他设备无法连接，请在 Windows 安全中心的防火墙设置中确认 Node.js 已允许通过专用网络。</p>
+                            </details>
                         </div>
                         <button id="cross-device-access-copy-apply" class="menu_button" type="button">复制配置步骤</button>
                         <input id="cross-device-access-safe-start-command" class="text_pole" type="text" readonly spellcheck="false">
@@ -645,11 +696,21 @@ function createSettingsPanel() {
                     <p>这里需要的是<b>服务器设备自己的 IP</b>，它与第 1 步的访问设备 IP 不同。</p>
                     <details open>
                         <summary>服务器设备 IP 怎么看？</summary>
+                        <div data-safe-platform="android-termux">
                         <ol>
                             <li>打开服务器设备的“设置” → “WLAN / Wi‑Fi”。</li>
                             <li>点当前已连接的 Wi‑Fi 或“网络详情”。</li>
                             <li>找到“IP 地址”或“IPv4 地址”。不同服务器设备的设置名称可能略有不同。</li>
                         </ol>
+                        </div>
+                        <div data-safe-platform="windows" hidden>
+                        <ol>
+                            <li>打开 Windows“设置” → “网络和 Internet”。</li>
+                            <li>进入当前连接的 Wi‑Fi 或以太网属性。</li>
+                            <li>找到“IPv4 地址”，填到下面。不要选择 VPN、WSL、Hyper-V、蓝牙等虚拟网卡地址。</li>
+                        </ol>
+                        <p>也可以按 <code>Win+R</code>，输入 <code>cmd</code>，再运行 <code>ipconfig</code>，查找当前 Wi‑Fi 或以太网下的“IPv4 地址”。</p>
+                        </div>
                     </details>
                     <details>
                         <summary>服务器设备正在使用流量并开启热点</summary>
@@ -733,20 +794,29 @@ function mountSettingsPanel() {
     });
 
     panel.querySelector('#cross-device-access-device-ip').addEventListener('input', () => updateClientValidation(panel));
-    panel.querySelector('#cross-device-access-safe-start-command').value = DEFAULT_START_COMMAND;
+    panel.querySelectorAll('input[name="cross-device-access-platform"]').forEach((radio) => {
+        radio.addEventListener('change', () => updateSafePlatform(panel));
+    });
+    updateSafePlatform(panel);
     panel.querySelectorAll('input[name="cross-device-access-mode"]').forEach((radio) => {
         radio.addEventListener('change', () => updateClientValidation(panel));
     });
     panel.querySelector('#cross-device-access-generate').addEventListener('click', () => generateCommandOutput(panel));
     panel.querySelector('#cross-device-access-copy-apply').addEventListener('click', () => {
+        const isWindows = getSelectedServerPlatform(panel) === 'windows';
         void copyText(panel.querySelector('#cross-device-access-apply-command').value,
             panel.querySelector('#cross-device-access-copy-status'),
-            '配置步骤已复制。请先停止酒馆，再粘贴到 Termux 执行。');
+            isWindows
+                ? '配置步骤已复制。请先停止酒馆，再粘贴到 SillyTavern 文件夹中打开的 PowerShell 执行。'
+                : '配置步骤已复制。请先停止酒馆，再粘贴到 Termux 执行。');
     });
     panel.querySelector('#cross-device-access-copy-safe-start').addEventListener('click', () => {
-        void copyText(DEFAULT_START_COMMAND,
+        const isWindows = getSelectedServerPlatform(panel) === 'windows';
+        void copyText(getSafeStartCommand(panel),
             panel.querySelector('#cross-device-access-copy-status'),
-            '官方通用启动命令已复制。粘贴到 Termux 后按回车。');
+            isWindows
+                ? 'Windows 启动命令已复制。粘贴到 SillyTavern 文件夹中的 PowerShell 后按回车。'
+                : '官方通用启动命令已复制。粘贴到 Termux 后按回车。');
     });
     panel.querySelector('#cross-device-access-copy-restore').addEventListener('click', () => {
         void copyText(panel.querySelector('#cross-device-access-restore-command').value,

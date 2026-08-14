@@ -23,8 +23,11 @@
 以下场景不属于第一版安全承诺：
 
 - 用户自行修改生成的命令
-- 非 `~/SillyTavern` 路径
-- 非 Android Termux 环境
+- Android Termux 使用非 `~/SillyTavern` 路径
+- Windows 命令不在原版 SillyTavern Git 安装根目录中执行
+- Windows 非 Git 安装、Docker、Linux 或其他未列出的服务器环境
+- 在 Windows 中以管理员身份运行 SillyTavern 或生成命令
+- Windows 可选后端；当前 Windows 只支持安全配置向导
 - 公网暴露、反向代理、VPN、容器或自定义网络结构
 - 与其他脚本同时修改 `config.yaml`
 - 手动删除或修改本助手创建的备份

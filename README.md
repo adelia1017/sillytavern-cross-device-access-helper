@@ -1,12 +1,12 @@
 # SillyTavern 跨设备访问助手
 
-一个安全优先的 SillyTavern 跨设备访问扩展。默认无需服务器插件，帮助 Android Termux 用户生成局域网访问配置命令；也可以按界面提示安装独立开源后端，在同一个面板查看状态、修改预览并安全应用。
+一个安全优先的 SillyTavern 跨设备访问扩展。默认无需服务器插件，为 Android Termux 或 Windows 服务器设备生成局域网访问配置命令；Android Termux 用户也可以按界面提示安装独立开源后端，在同一个面板查看状态、修改预览并安全应用。
 
 > 可选后端会在用户查看预览并二次确认后，安全备份并修改配置，也可以恢复最近一次助手备份；它不会自动重启 SillyTavern。
 
 ## 先分清两台设备和两个 IP
 
-- **服务器设备**：安装 Termux、运行 SillyTavern 的这台设备。
+- **服务器设备**：安装并运行 SillyTavern 的 Android Termux 设备或 Windows 电脑。
 - **访问设备**：准备打开酒馆网页的另一台设备。
 - **访问设备 IP**：访问设备的 IPv4，例如 `192.168.123.17`，需要加入白名单。
 - **服务器设备 IP**：服务器设备的局域网地址。访问设备最终打开 `http://服务器设备IP:8000`。
@@ -19,13 +19,13 @@
 - 内置 iPad、Windows 和 Android 查找 IP 的分步教程
 - “仅允许单个设备”：添加完整客户端 IP，推荐使用
 - “允许当前可信局域网”：按输入地址生成同一 `/24` 网段
-- 生成可整段复制的 Termux 修改命令
+- 根据服务器系统生成可整段复制的 Termux Bash 或 Windows PowerShell 修改命令
 - 生成恢复本助手最近一次备份的命令
 - 根据服务器设备 IP 生成并复制 `http://服务器设备IP:8000` 访问网址
 - 页面本身通过局域网 IPv4 打开时自动识别服务器设备 IP
 - 后端连接时显示当前白名单，根据访问设备 IP 推荐同一 Wi-Fi 网段的服务器网址，并折叠其他网络地址
 - 安全向导和后端区域都内置访问设备 IP 查找教程
-- 重启步骤使用官方 Termux 通用命令 `cd "$HOME/SillyTavern" && bash start.sh` 并提供复制按钮，不依赖个人别名
+- Android 重启步骤使用 `cd "$HOME/SillyTavern" && bash start.sh`；Windows 使用 `.\Start.bat`，均提供复制按钮
 - 可选在浏览器本地生成推荐访问网址的二维码，不向二维码网站上传数据
 - 输入默认不保存，刷新页面后消失
 - 安全配置向导默认展开且可收起，不要求开启服务器插件权限
@@ -37,23 +37,27 @@
 - 可恢复最近一次助手备份；恢复前再次备份当前配置
 - 修改后显示 Termux 手动重启步骤，并识别“配置已更新但本次运行仍是旧配置”
 
-## 第一版支持范围
+## 支持范围
 
-仅支持以下组合：
+安全配置向导支持：
 
 - Android Termux
-- SillyTavern 常规安装路径 `~/SillyTavern`
+- Windows 10 / 11 原版 SillyTavern Git 安装
+- Android 使用常规安装路径 `~/SillyTavern`
+- Windows 命令必须从包含 `config.yaml` 的 SillyTavern 安装文件夹运行，不接受用户填写文件路径
 - SillyTavern 已正常安装依赖，且项目自带 `yaml` 包
 - 私有 IPv4：`10.0.0.0/8`、`172.16.0.0/12`、`192.168.0.0/16`
 - 同一 `/24` 可信局域网模式
 
-第一版不支持 Docker、Windows、Linux 服务器、自定义安装路径、IPv6 客户端、反向代理、VPN、Tailscale、内网穿透或公网暴露。
+可选后端目前仍只支持 Android Termux 常规路径 `~/SillyTavern`。Windows 只能使用安全配置向导。
+
+目前不支持 Docker、Linux 服务器、Windows 非 Git 安装、IPv6 客户端、反向代理、VPN、Tailscale、内网穿透或公网暴露。
 
 ## 安全设计
 
 安全配置向导只生成文字，不会自动执行命令，也不能直接修改 `config.yaml`。生成的命令固定执行以下流程：
 
-1. 进入固定目录 `~/SillyTavern`
+1. Android 命令进入固定目录 `~/SillyTavern`；Windows 命令只接受当前包含 `config.yaml` 的文件夹
 2. 再次验证固定格式的私有 IPv4 或 `/24` 网段
 3. 拒绝符号链接形式的 `config.yaml`
 4. 使用 SillyTavern 自带的 YAML 解析器读取配置并拒绝重复键
@@ -86,7 +90,7 @@
 
 第三方 SillyTavern UI 扩展运行在酒馆网页上下文中，本身没有浏览器沙箱隔离。请只从你信任的仓库安装，并在更新前查看源码变化。
 
-可选后端是单独的服务器组件，没有沙箱，会继承 SillyTavern Node.js 进程权限。主扩展不会自动安装或执行它；只有用户展开风险说明、复制命令并在 Termux 手动执行后才会安装。安装后，所有修改都必须先由用户主动生成预览并通过浏览器二次确认。后端源码位于：
+可选后端是单独的 Android Termux 服务器组件，没有沙箱，会继承 SillyTavern Node.js 进程权限。主扩展不会自动安装或执行它；只有用户展开风险说明、复制命令并在 Termux 手动执行后才会安装。安装后，所有修改都必须先由用户主动生成预览并通过浏览器二次确认。后端源码位于：
 
 ```text
 https://github.com/adelia1017/sillytavern-cross-device-access-helper-backend
@@ -110,11 +114,19 @@ https://github.com/adelia1017/sillytavern-cross-device-access-helper-backend
 ## 使用
 
 1. 打开 SillyTavern 的“扩展设置”，展开“跨设备访问助手”。
-2. 按第 1 步内置教程，在 iPad 或电脑上查到访问设备 IPv4 并填写。
-3. 按第 2 步选择只允许这一台设备，或允许当前可信 Wi‑Fi。
-4. 在第 3 步点击“生成下一步”，保存聊天后手动停止酒馆，再复制配置步骤到 Termux 执行。
-5. 确认终端明确显示“配置修改成功”和备份路径，再复制界面中的官方通用启动命令并执行。
-6. 按第 4 步内置教程查找服务器设备 IP；助手会生成访问设备要打开的网址。
+2. 选择服务器设备使用 Android Termux 还是 Windows。
+3. 按第 1 步内置教程，在访问设备上查到 IPv4 并填写。
+4. 按第 2 步选择只允许这一台设备，或允许当前可信 Wi‑Fi。
+5. 在第 3 步点击“生成下一步”，保存聊天并停止酒馆，再按照界面教程把配置步骤粘贴到 Termux 或 PowerShell。
+6. 确认终端明确显示“配置修改成功”和备份路径，再复制对应系统的启动命令并执行。
+7. 按第 4 步内置教程查找服务器设备 IP；助手会生成访问设备要打开的网址。
+
+### Windows 使用注意
+
+- 在 SillyTavern 安装文件夹的地址栏输入 `powershell` 并回车，再粘贴生成的命令。
+- 不要以管理员身份运行 SillyTavern 或配置命令。
+- 第一次开放局域网访问时，Windows 防火墙可能询问是否允许 Node.js 通信。只允许“专用网络”，不要允许“公用网络”。
+- 修改成功后可以在 PowerShell 运行 `.\Start.bat`，也可以关闭 PowerShell 后双击安装目录中的 `Start.bat`。
 
 ### 服务器设备使用流量并开启热点
 
@@ -142,19 +154,19 @@ https://github.com/adelia1017/sillytavern-cross-device-access-helper-backend
 
 如果修改后需要撤销：
 
-安全向导：回到扩展中点击“复制恢复步骤”，在 Termux 中手动执行。
+安全向导：回到扩展中点击“复制恢复步骤”，在当前选择的 Termux 或 Windows PowerShell 中手动执行。
 
 可选后端：在后端面板点击“恢复最近一次备份”，并在弹窗中再次确认。恢复接口不接受路径，只会选择本助手创建的最近一次备份；恢复前还会保存当前配置。
 
 手动恢复步骤：
 
 1. 回到扩展中点击“复制恢复步骤”。
-2. 在 Termux 中整段粘贴并执行。
+2. 按界面提示在 Termux 或 SillyTavern 文件夹中打开的 PowerShell 中整段粘贴并执行。
 3. 恢复命令只会选择本助手创建的最近一次备份。
 4. 恢复前，当前配置还会另存为一份 `pre-restore` 安全备份。
 5. 看到恢复成功提示后，手动重启 SillyTavern。
 
-请注意：卸载扩展不会撤销已经在 Termux 中执行的配置修改，配置恢复与扩展卸载是两件不同的事。
+请注意：卸载扩展不会撤销已经执行的配置修改，配置恢复与扩展卸载是两件不同的事。
 
 ## 卸载
 
@@ -175,10 +187,10 @@ https://github.com/adelia1017/sillytavern-cross-device-access-helper-backend
 
 ## 测试与问题反馈
 
-自动化测试、隔离集成测试和 Termux 人工验收记录见 [TESTING.md](TESTING.md)。发现问题时，请提供：
+自动化测试、Windows 隔离往返测试和 Termux 人工验收记录见 [TESTING.md](TESTING.md)。发现问题时，请提供：
 
 - SillyTavern 版本
-- Android 与 Termux 版本
+- 服务器系统版本；Android 请附 Termux 版本，Windows 请说明安装方式
 - 选择的模式
 - 已遮住私人 IP 后的完整错误信息
 

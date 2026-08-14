@@ -7,6 +7,7 @@ import { validateDeviceIp } from '../ip-utils.js';
 test('single-device mode embeds only the canonical validated device IP', () => {
     const commands = generateCommands(validateDeviceIp('192.168.123.17'), 'single');
     assert.equal(commands.target, '192.168.123.17');
+    assert.equal(commands.platform, 'android-termux');
     assert.match(commands.apply, /'192\.168\.123\.17'/);
 });
 
@@ -19,6 +20,18 @@ test('network mode embeds the calculated /24 target', () => {
 test('generator rejects invalid input and arbitrary modes', () => {
     assert.throws(() => generateCommands(validateDeviceIp('8.8.8.8'), 'single'));
     assert.throws(() => generateCommands(validateDeviceIp('192.168.1.2'), 'anything'));
+    assert.throws(() => generateCommands(validateDeviceIp('192.168.1.2'), 'single', 'linux'));
+});
+
+test('Windows mode produces a PowerShell command scoped to the current SillyTavern folder', () => {
+    const commands = generateCommands(validateDeviceIp('192.168.123.17'), 'single', 'windows');
+    assert.equal(commands.platform, 'windows');
+    assert.match(commands.apply, /^& \{\n\$ErrorActionPreference = 'Stop'/);
+    assert.match(commands.apply, /Test-Path -LiteralPath '\.\\config\.yaml'/);
+    assert.match(commands.apply, /node --input-type=module - '192\.168\.123\.17'/);
+    assert.match(commands.apply, /同时包含 config\.yaml 和 package\.json/);
+    assert.doesNotMatch(commands.apply, /\$HOME\/SillyTavern|ST_CROSS_DEVICE_HELPER/);
+    assert.match(commands.restore, /cross-device-access-helper-pre-restore/);
 });
 
 test('generated apply command has required safety operations', () => {
@@ -30,7 +43,7 @@ test('generated apply command has required safety operations', () => {
         "doc.set('whitelistMode', true)", "doc.set('whitelist', whitelist)",
         "'::1'", "'127.0.0.1'", 'isDeepStrictEqual',
         'function validateTarget', 'octet > 255', "match[5] === '/24'",
-        "readFileSync(backupPath).equals", "fs.openSync(backupPath, 'r')",
+        "readFileSync(backupPath).equals", "fs.openSync(backupPath, 'r+')",
     ]) {
         assert.ok(apply.includes(required), required);
     }
